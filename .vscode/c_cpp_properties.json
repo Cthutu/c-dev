@@ -1,0 +1,17 @@
+{
+    "configurations": [
+        {
+            "name": "Windows",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
+            "defines": [
+                "KORE_IMPLEMENTATION"
+            ],
+            "compilerPath": "C:/Users/matt/scoop/apps/llvm/current/bin/clang++.exe",
+            "cStandard": "c11",
+            "intelliSenseMode": "windows-clang-x64"
+        }
+    ],
+    "version": 4
+}

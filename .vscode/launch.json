@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug test",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/_bin/hello.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "environment": [],
+            "preLaunchTask": "Build",
+            "console": "integratedTerminal"
+        }
+    ]
+}

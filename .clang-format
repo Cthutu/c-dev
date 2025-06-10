@@ -1,0 +1,19 @@
+
+---
+Language:        C
+IndentWidth: 4
+AlignConsecutiveAssignments:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+  AlignCompound: false
+  AlignFunctionPointers: false
+  PadOperators: true
+BinPackArguments: false
+BinPackParameters: OnePerLine
+TabWidth: 4
+InsertNewlineAtEOF: true
+InsertBraces: true
+LineEnding: LF
+PointerAlignment: Left
+IndentPPDirectives: AfterHash
