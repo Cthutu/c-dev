@@ -41,6 +41,11 @@ void k_memory_free(void* ptr, const char* file, int line);
 
 usize k_memory_size(const void* ptr);
 
+// Memory debugging utilities
+void k_memory_print_leaks(void);
+usize k_memory_get_allocation_count(void);
+usize k_memory_get_total_allocated(void);
+
 #define KORE_MALLOC(size) k_memory_alloc((size), __FILE__, __LINE__)
 #define KORE_REALLOC(ptr, size)                                                \
     k_memory_realloc((ptr), (size), __FILE__, __LINE__)
@@ -63,7 +68,12 @@ typedef struct KMemoryHeader_t {
     usize size;
     const char* file;
     int line;
+
+    struct KMemoryHeader_t* next; // Pointer to the next header in a linked list
 } KMemoryHeader;
+
+// Global pointer to the head of the linked list of allocated memory blocks
+static KMemoryHeader* g_memory_head = NULL;
 
 void* k_memory_alloc(usize size, const char* file, int line) {
     KMemoryHeader* header =
@@ -73,9 +83,13 @@ void* k_memory_alloc(usize size, const char* file, int line) {
         abort();
     }
 
-    header->size = size;
-    header->file = file;
-    header->line = line;
+    header->size  = size;
+    header->file  = file;
+    header->line  = line;
+
+    // Add to linked list
+    header->next  = g_memory_head;
+    g_memory_head = header;
 
     return (void*)(header + 1);
 }
@@ -85,26 +99,62 @@ void* k_memory_realloc(void* ptr, usize size, const char* file, int line) {
         return k_memory_alloc(size, file, line);
     }
 
-    KMemoryHeader* header = (KMemoryHeader*)ptr - 1;
-    header = (KMemoryHeader*)realloc(header, sizeof(KMemoryHeader) + size);
+    KMemoryHeader* old_header = (KMemoryHeader*)ptr - 1;
+
+    // Remove old header from linked list
+    if (g_memory_head == old_header) {
+        g_memory_head = old_header->next;
+    } else {
+        KMemoryHeader* current = g_memory_head;
+        while (current && current->next != old_header) {
+            current = current->next;
+        }
+        if (current) {
+            current->next = old_header->next;
+        }
+    }
+
+    KMemoryHeader* header =
+        (KMemoryHeader*)realloc(old_header, sizeof(KMemoryHeader) + size);
     if (!header) {
         fprintf(stderr, "Memory reallocation failed at %s:%d\n", file, line);
         abort();
     }
 
-    header->size = size;
-    header->file = file;
-    header->line = line;
+    header->size  = size;
+    header->file  = file;
+    header->line  = line;
+
+    // Add new header to linked list
+    header->next  = g_memory_head;
+    g_memory_head = header;
 
     return (void*)(header + 1);
 }
 
 void k_memory_free(void* ptr, const char* file, int line) {
+    (void)file; // Suppress unused parameter warning
+    (void)line; // Suppress unused parameter warning
+
     if (!ptr) {
         return;
     }
 
     KMemoryHeader* header = (KMemoryHeader*)ptr - 1;
+
+    // Remove from linked list
+    if (g_memory_head == header) {
+        g_memory_head = header->next;
+    } else {
+        KMemoryHeader* current = g_memory_head;
+        while (current && current->next != header) {
+            current = current->next;
+        }
+        if (current) {
+            current->next = header->next;
+        }
+    }
+
     free(header);
 }
 
@@ -115,6 +165,59 @@ usize k_memory_size(const void* ptr) {
 
     const KMemoryHeader* header = (const KMemoryHeader*)ptr - 1;
     return header->size;
+}
+
+// Memory debugging utilities
+void k_memory_print_leaks(void) {
+    KMemoryHeader* current = g_memory_head;
+    usize leak_count       = 0;
+    usize total_leaked     = 0;
+
+    if (!current) {
+        printf("No memory leaks detected.\n");
+        return;
+    }
+
+    printf("Memory leaks detected:\n");
+    printf("========================\n");
+
+    while (current) {
+        printf("Leak #%zu: %zu bytes allocated at %s:%d\n",
+               leak_count + 1,
+               current->size,
+               current->file,
+               current->line);
+        total_leaked += current->size;
+        leak_count++;
+        current = current->next;
+    }
+
+    printf("========================\n");
+    printf("Total: %zu leaks, %zu bytes\n", leak_count, total_leaked);
+}
+
+usize k_memory_get_allocation_count(void) {
+    usize count            = 0;
+    KMemoryHeader* current = g_memory_head;
+
+    while (current) {
+        count++;
+        current = current->next;
+    }
+
+    return count;
+}
+
+usize k_memory_get_total_allocated(void) {
+    usize total            = 0;
+    KMemoryHeader* current = g_memory_head;
+
+    while (current) {
+        total += current->size;
+        current = current->next;
+    }
+
+    return total;
 }
 
 //------------------------------------------------------------------------------

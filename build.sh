@@ -37,6 +37,12 @@ for SRC_FILE in $SRC_FILES; do
     OBJECT_DIR="_obj"
     mkdir -p $OUTPUT_DIR $OBJECT_DIR
     
+    # Skip files that start with "test"
+    if [[ $(basename "$SRC_FILE") == test* ]]; then
+        echo -e "${YELLOW}  [SKIPPED] $SRC_FILE (test file)${RESET}"
+        continue
+    fi
+    
     # Compile the source file
     echo -e "${CYAN}  [COMPILE] $SRC_FILE...${RESET}"
     $C_COMPILER -c $CFLAGS -o "$OBJECT_DIR/$BASE_NAME.o" "$SRC_FILE"
