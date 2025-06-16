@@ -318,6 +318,221 @@ TEST_CASE(memory_list_integrity_stress) {
     TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
 }
 
+TEST_CASE(memory_leak_basic) {
+    // Test basic leak marking functionality
+    extern KMemoryHeader* g_memory_head;
+
+    usize initial_count = k_memory_get_allocation_count();
+
+    // Allocate some memory
+    void* p1            = KORE_MALLOC(100);
+    void* p2            = KORE_MALLOC(200);
+
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 2);
+
+    // Mark p1 as leaked
+    k_memory_leak(p1);
+
+    // p1 should be removed from the linked list, so allocation count should
+    // decrease
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 1);
+
+    // Verify p1's header is not in the linked list anymore
+    KMemoryHeader* current   = g_memory_head;
+    KMemoryHeader* p1_header = (KMemoryHeader*)p1 - 1;
+    bool found_p1            = false;
+
+    while (current) {
+        if (current == p1_header) {
+            found_p1 = true;
+            break;
+        }
+        current = current->next;
+    }
+
+    TEST_ASSERT(!found_p1); // p1 should not be in the list
+
+    // p2 should still be in the list
+    current                  = g_memory_head;
+    KMemoryHeader* p2_header = (KMemoryHeader*)p2 - 1;
+    bool found_p2            = false;
+
+    while (current) {
+        if (current == p2_header) {
+            found_p2 = true;
+            break;
+        }
+        current = current->next;
+    }
+
+    TEST_ASSERT(found_p2); // p2 should be in the list
+
+    // Clean up p2 (p1 is leaked intentionally)
+    KORE_FREE(p2);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
+}
+
+TEST_CASE(memory_leak_realloc_preserves_flag) {
+    // Test that realloc preserves the leaked flag
+    extern KMemoryHeader* g_memory_head;
+
+    usize initial_count = k_memory_get_allocation_count();
+
+    // Allocate memory
+    void* p1            = KORE_MALLOC(100);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 1);
+
+    // Mark as leaked
+    k_memory_leak(p1);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
+
+    // Realloc the leaked memory
+    void* p2 = KORE_REALLOC(p1, 200);
+
+    // Should still be leaked (not in the linked list)
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
+
+    // Verify the reallocated memory is not in the linked list
+    KMemoryHeader* current   = g_memory_head;
+    KMemoryHeader* p2_header = (KMemoryHeader*)p2 - 1;
+    bool found_p2            = false;
+
+    while (current) {
+        if (current == p2_header) {
+            found_p2 = true;
+            break;
+        }
+        current = current->next;
+    }
+
+    TEST_ASSERT(!found_p2); // p2 should not be in the list (still leaked)
+
+    // Verify the leaked flag is set
+    TEST_ASSERT(p2_header->leaked);
+}
+
+TEST_CASE(memory_leak_realloc_then_mark) {
+    // Test marking as leaked after realloc
+    extern KMemoryHeader* g_memory_head;
+
+    usize initial_count = k_memory_get_allocation_count();
+
+    // Allocate memory
+    void* p1            = KORE_MALLOC(100);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 1);
+
+    // Realloc first
+    void* p2 = KORE_REALLOC(p1, 200);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 1);
+
+    // Then mark as leaked
+    k_memory_leak(p2);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
+
+    // Verify p2 is not in the linked list
+    KMemoryHeader* current   = g_memory_head;
+    KMemoryHeader* p2_header = (KMemoryHeader*)p2 - 1;
+    bool found_p2            = false;
+
+    while (current) {
+        if (current == p2_header) {
+            found_p2 = true;
+            break;
+        }
+        current = current->next;
+    }
+
+    TEST_ASSERT(!found_p2);         // p2 should not be in the list
+    TEST_ASSERT(p2_header->leaked); // Should be marked as leaked
+}
+
+TEST_CASE(memory_leak_multiple_operations) {
+    // Test complex scenario with multiple allocations, leaks, and reallocs
+    extern KMemoryHeader* g_memory_head;
+
+    usize initial_count = k_memory_get_allocation_count();
+
+    // Allocate several blocks
+    void* p1            = KORE_MALLOC(100);
+    void* p2            = KORE_MALLOC(200);
+    void* p3            = KORE_MALLOC(300);
+
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 3);
+
+    // Mark p2 as leaked
+    k_memory_leak(p2);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 2);
+
+    // Realloc p1
+    void* p1_new = KORE_REALLOC(p1, 150);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 2);
+
+    // Realloc the leaked p2
+    void* p2_new = KORE_REALLOC(p2, 250);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(),
+                   initial_count + 2); // Still leaked
+
+    // Mark p3 as leaked
+    k_memory_leak(p3);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 1);
+
+    // Only p1_new should be in the linked list now
+    usize count            = 0;
+    KMemoryHeader* current = g_memory_head;
+    while (current) {
+        count++;
+        current = current->next;
+    }
+    TEST_ASSERT_EQ(count, 1);
+
+    // Clean up the non-leaked allocation
+    KORE_FREE(p1_new);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
+}
+
+TEST_CASE(memory_leak_null_pointer) {
+    // Test that leaking a NULL pointer is safe
+    usize initial_count = k_memory_get_allocation_count();
+
+    // This should not crash or affect anything
+    k_memory_leak(NULL);
+
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
+}
+
+TEST_CASE(memory_leak_double_mark) {
+    // Test marking the same allocation as leaked twice
+    extern KMemoryHeader* g_memory_head;
+
+    usize initial_count = k_memory_get_allocation_count();
+
+    void* p             = KORE_MALLOC(100);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count + 1);
+
+    // Mark as leaked first time
+    k_memory_leak(p);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
+
+    // Mark as leaked second time - should be safe
+    k_memory_leak(p);
+    TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
+
+    // Verify it's still not in the linked list
+    KMemoryHeader* current  = g_memory_head;
+    KMemoryHeader* p_header = (KMemoryHeader*)p - 1;
+    bool found              = false;
+
+    while (current) {
+        if (current == p_header) {
+            found = true;
+            break;
+        }
+        current = current->next;
+    }
+
+    TEST_ASSERT(!found); // Should not be in the list
+}
+
 TEST_SUITE_BEGIN()
 RUN_TEST(allocate_simple);
 RUN_TEST(allocate_multiple_sizes);
@@ -333,4 +548,10 @@ RUN_TEST(memory_header_linked_list);
 RUN_TEST(memory_header_realloc_list_update);
 RUN_TEST(memory_header_file_line_tracking);
 RUN_TEST(memory_list_integrity_stress);
+RUN_TEST(memory_leak_basic);
+RUN_TEST(memory_leak_realloc_preserves_flag);
+RUN_TEST(memory_leak_realloc_then_mark);
+RUN_TEST(memory_leak_multiple_operations);
+RUN_TEST(memory_leak_null_pointer);
+RUN_TEST(memory_leak_double_mark);
 TEST_SUITE_END()

@@ -5,6 +5,7 @@
 // Copyright (c) 2023 Matt Davies, all rights reserved.
 //------------------------------------------------------------------------------
 
+#include <stdbool.h>
 #include <stdint.h>
 
 //------------------------------------------------------------------------------
@@ -136,6 +137,7 @@ void* k_memory_realloc(void* ptr, usize size, const char* file, int line);
 void k_memory_free(void* ptr, const char* file, int line);
 
 usize k_memory_size(const void* ptr);
+void k_memory_leak(void* ptr);
 
 // Memory debugging utilities
 #if KORE_DEBUG
@@ -163,14 +165,17 @@ usize k_memory_get_total_allocated(void);
 //----------------------------------------------------------------------[Memory]
 
 typedef struct KMemoryHeader_t {
-    usize size;
+    usize size; // Number of bytes allocated
 
 #    if KORE_DEBUG
-    const char* file;
-    int line;
+    const char* file; // File where the allocation was made
+    int line;         // Line number where the allocation was made
 
     struct KMemoryHeader_t* next; // Pointer to the next header in a linked list
-#    endif                        // KORE_DEBUG
+    bool leaked; // Flag to indicate if this block was leaked and therefore
+                 // should not be in the linked list.  This is used to mark
+                 // allocations with application lifetimes.
+#    endif       // KORE_DEBUG
 } KMemoryHeader;
 
 // Global pointer to the head of the linked list of allocated memory blocks
@@ -189,12 +194,13 @@ void* k_memory_alloc(usize size, const char* file, int line) {
     header->size = size;
 
 #    if KORE_DEBUG
-    header->file  = file;
-    header->line  = line;
+    header->file   = file;
+    header->line   = line;
+    header->leaked = false; // Initialise leaked flag
 
     // Add to linked list
-    header->next  = g_memory_head;
-    g_memory_head = header;
+    header->next   = g_memory_head;
+    g_memory_head  = header;
 #    endif // KORE_DEBUG
 
     return (void*)(header + 1);
@@ -207,17 +213,24 @@ void* k_memory_realloc(void* ptr, usize size, const char* file, int line) {
 
     KMemoryHeader* old_header = (KMemoryHeader*)ptr - 1;
 
+#    if KORE_DEBUG
+    // Preserve the leaked flag from the old header
+    bool was_leaked = old_header->leaked;
+#    endif // KORE_DEBUG
+
 // Remove old header from linked list
 #    if KORE_DEBUG
-    if (g_memory_head == old_header) {
-        g_memory_head = old_header->next;
-    } else {
-        KMemoryHeader* current = g_memory_head;
-        while (current && current->next != old_header) {
-            current = current->next;
-        }
-        if (current) {
-            current->next = old_header->next;
+    if (!old_header->leaked) {
+        if (g_memory_head == old_header) {
+            g_memory_head = old_header->next;
+        } else {
+            KMemoryHeader* current = g_memory_head;
+            while (current && current->next != old_header) {
+                current = current->next;
+            }
+            if (current) {
+                current->next = old_header->next;
+            }
         }
     }
 #    endif // KORE_DEBUG
@@ -232,12 +245,15 @@ void* k_memory_realloc(void* ptr, usize size, const char* file, int line) {
     header->size = size;
 
 #    if KORE_DEBUG
-    header->file  = file;
-    header->line  = line;
+    header->file   = file;
+    header->line   = line;
+    header->leaked = was_leaked; // Preserve the leaked flag
 
-    // Add new header to linked list
-    header->next  = g_memory_head;
-    g_memory_head = header;
+    // Add new header to linked list only if it's not leaked
+    if (!header->leaked) {
+        header->next  = g_memory_head;
+        g_memory_head = header;
+    }
 #    endif // KORE_DEBUG
 
     return (void*)(header + 1);
@@ -255,15 +271,17 @@ void k_memory_free(void* ptr, const char* file, int line) {
 
 #    if KORE_DEBUG
     // Remove from linked list
-    if (g_memory_head == header) {
-        g_memory_head = header->next;
-    } else {
-        KMemoryHeader* current = g_memory_head;
-        while (current && current->next != header) {
-            current = current->next;
-        }
-        if (current) {
-            current->next = header->next;
+    if (!header->leaked) {
+        if (g_memory_head == header) {
+            g_memory_head = header->next;
+        } else {
+            KMemoryHeader* current = g_memory_head;
+            while (current && current->next != header) {
+                current = current->next;
+            }
+            if (current) {
+                current->next = header->next;
+            }
         }
     }
 #    endif // KORE_DEBUG
@@ -278,6 +296,32 @@ usize k_memory_size(const void* ptr) {
 
     const KMemoryHeader* header = (const KMemoryHeader*)ptr - 1;
     return header->size;
+}
+
+void k_memory_leak(void* ptr) {
+#    if KORE_DEBUG
+
+    if (!ptr) {
+        return;
+    }
+
+    KMemoryHeader* header = (KMemoryHeader*)ptr - 1;
+    header->leaked        = true; // Mark this block as leaked
+
+    // Remove from linked list if it exists
+    if (g_memory_head == header) {
+        g_memory_head = header->next;
+    } else {
+        KMemoryHeader* current = g_memory_head;
+        while (current && current->next != header) {
+            current = current->next;
+        }
+        if (current) {
+            current->next = header->next;
+        }
+    }
+
+#    endif // KORE_DEBUG
 }
 
 #    if KORE_DEBUG

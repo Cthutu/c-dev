@@ -71,7 +71,7 @@ TEST_SUITE_END()
 
 Compile your test file like any other C program:
 ```bash
-gcc -o test_program test_file.c -std=c99
+clang -o test_program test_file.c -std=c23
 ./test_program
 ```
 
