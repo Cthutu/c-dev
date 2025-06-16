@@ -9,7 +9,8 @@ CYAN='\033[0;36m'
 
 # Set up the environment
 C_COMPILER="clang"
-CFLAGS="-Wall -Wextra -Werror -g -std=c23"
+DEFINES=""
+CFLAGS="-Wall -Wextra -Werror -g -std=c23 $DEFINES"
 EXE_NAME="hello.exe"
 SRC_DIR="src"
 

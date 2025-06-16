@@ -10,10 +10,106 @@
 //------------------------------------------------------------------------------
 // INDEX
 //
+// [Config]             Configuration macros and settings
 // [Types]              Basic types and definitions
 // [Memory]             Memory management functions
 //
 //------------------------------------------------------------------------------
+
+//----------------------------------------------------------------------[Config]
+
+#define YES (1)
+#define NO (0)
+
+//
+// Compiler detection
+//
+
+#define KORE_COMPILER_GCC NO
+#define KORE_COMPILER_CLANG NO
+#define KORE_COMPILER_MSVC NO
+
+#if defined(__CLANG__)
+#    undef KORE_COMPILER_CLANG
+#    define KORE_COMPILER_CLANG YES
+#elif defined(__GNUC__)
+#    undef KORE_COMPILER_GCC
+#    define KORE_COMPILER_GCC YES
+#elif defined(_MSC_VER)
+#    undef KORE_COMPILER_MSVC
+#    define KORE_COMPILER_MSVC YES
+#else
+#    error "Unsupported compiler. Please use GCC, Clang, or MSVC."
+#endif
+
+//
+// OS detection
+//
+
+#define KORE_OS_WINDOWS NO
+#define KORE_OS_LINUX NO
+#define KORE_OS_MACOS NO
+#define KORE_OS_BSD NO
+
+#if defined(_WIN32) || defined(_WIN64)
+#    undef KORE_OS_WINDOWS
+#    define KORE_OS_WINDOWS YES
+#elif defined(__linux__)
+#    undef KORE_OS_LINUX
+#    define KORE_OS_LINUX YES
+#elif defined(__APPLE__) || defined(__MACH__)
+#    undef KORE_OS_MACOS
+#    define KORE_OS_MACOS YES
+#elif defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)
+#    undef KORE_OS_BSD
+#    define KORE_OS_BSD YES
+#else
+#    error "Unsupported OS. Please use Windows, Linux, macOS, or BSD."
+#endif
+
+//
+// Architecture detection
+//
+
+#define KORE_ARCH_X86 NO
+#define KORE_ARCH_X86_64 NO
+#define KORE_ARCH_ARM NO
+#define KORE_ARCH_ARM64 NO
+
+#if defined(__i386__) || defined(_M_IX86)
+#    undef KORE_ARCH_X86
+#    define KORE_ARCH_X86 YES
+#elif defined(__x86_64__) || defined(_M_X64)
+#    undef KORE_ARCH_X86_64
+#    define KORE_ARCH_X86_64 YES
+#elif defined(__arm__) || defined(_M_ARM)
+#    undef KORE_ARCH_ARM
+#    define KORE_ARCH_ARM YES
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#    undef KORE_ARCH_ARM64
+#    define KORE_ARCH_ARM64 YES
+#else
+#    error "Unsupported architecture. Please use x86, x86_64, ARM, or ARM64."
+#endif
+
+//
+// Build configuration detection
+//
+
+#define KORE_DEBUG NO
+#define KORE_RELEASE NO
+#define KORE_PROFILE NO
+
+#if defined(NDEBUG)
+#    undef KORE_RELEASE
+#    define KORE_RELEASE YES
+#elif defined(FINAL)
+#    undef KORE_PROFILE
+#    define KORE_PROFILE YES
+#else
+#    undef KORE_DEBUG
+#    define KORE_DEBUG YES
+#endif
 
 //-----------------------------------------------------------------------[Types]
 
@@ -42,9 +138,11 @@ void k_memory_free(void* ptr, const char* file, int line);
 usize k_memory_size(const void* ptr);
 
 // Memory debugging utilities
+#if KORE_DEBUG
 void k_memory_print_leaks(void);
 usize k_memory_get_allocation_count(void);
 usize k_memory_get_total_allocated(void);
+#endif // KORE_DEBUG
 
 #define KORE_MALLOC(size) k_memory_alloc((size), __FILE__, __LINE__)
 #define KORE_REALLOC(ptr, size)                                                \
@@ -66,14 +164,19 @@ usize k_memory_get_total_allocated(void);
 
 typedef struct KMemoryHeader_t {
     usize size;
+
+#    if KORE_DEBUG
     const char* file;
     int line;
 
     struct KMemoryHeader_t* next; // Pointer to the next header in a linked list
+#    endif                        // KORE_DEBUG
 } KMemoryHeader;
 
 // Global pointer to the head of the linked list of allocated memory blocks
+#    if KORE_DEBUG
 static KMemoryHeader* g_memory_head = NULL;
+#    endif // KORE_DEBUG
 
 void* k_memory_alloc(usize size, const char* file, int line) {
     KMemoryHeader* header =
@@ -83,13 +186,16 @@ void* k_memory_alloc(usize size, const char* file, int line) {
         abort();
     }
 
-    header->size  = size;
+    header->size = size;
+
+#    if KORE_DEBUG
     header->file  = file;
     header->line  = line;
 
     // Add to linked list
     header->next  = g_memory_head;
     g_memory_head = header;
+#    endif // KORE_DEBUG
 
     return (void*)(header + 1);
 }
@@ -101,7 +207,8 @@ void* k_memory_realloc(void* ptr, usize size, const char* file, int line) {
 
     KMemoryHeader* old_header = (KMemoryHeader*)ptr - 1;
 
-    // Remove old header from linked list
+// Remove old header from linked list
+#    if KORE_DEBUG
     if (g_memory_head == old_header) {
         g_memory_head = old_header->next;
     } else {
@@ -113,6 +220,7 @@ void* k_memory_realloc(void* ptr, usize size, const char* file, int line) {
             current->next = old_header->next;
         }
     }
+#    endif // KORE_DEBUG
 
     KMemoryHeader* header =
         (KMemoryHeader*)realloc(old_header, sizeof(KMemoryHeader) + size);
@@ -121,13 +229,16 @@ void* k_memory_realloc(void* ptr, usize size, const char* file, int line) {
         abort();
     }
 
-    header->size  = size;
+    header->size = size;
+
+#    if KORE_DEBUG
     header->file  = file;
     header->line  = line;
 
     // Add new header to linked list
     header->next  = g_memory_head;
     g_memory_head = header;
+#    endif // KORE_DEBUG
 
     return (void*)(header + 1);
 }
@@ -142,6 +253,7 @@ void k_memory_free(void* ptr, const char* file, int line) {
 
     KMemoryHeader* header = (KMemoryHeader*)ptr - 1;
 
+#    if KORE_DEBUG
     // Remove from linked list
     if (g_memory_head == header) {
         g_memory_head = header->next;
@@ -154,6 +266,7 @@ void k_memory_free(void* ptr, const char* file, int line) {
             current->next = header->next;
         }
     }
+#    endif // KORE_DEBUG
 
     free(header);
 }
@@ -166,6 +279,8 @@ usize k_memory_size(const void* ptr) {
     const KMemoryHeader* header = (const KMemoryHeader*)ptr - 1;
     return header->size;
 }
+
+#    if KORE_DEBUG
 
 // Memory debugging utilities
 void k_memory_print_leaks(void) {
@@ -219,6 +334,8 @@ usize k_memory_get_total_allocated(void) {
 
     return total;
 }
+
+#    endif // KORE_DEBUG
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
