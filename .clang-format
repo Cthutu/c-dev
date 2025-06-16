@@ -1,6 +1,6 @@
 
 ---
-Language:        C
+Language:        Cpp
 IndentWidth: 4
 AlignConsecutiveAssignments:
   Enabled: true

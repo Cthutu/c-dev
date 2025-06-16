@@ -2,7 +2,7 @@
 
 # Compile the test example
 echo "Compiling test example..."
-gcc -o _bin/test_example src/test_example.c -std=c99
+clang -o _bin/test_example src/kore_test.c -std=c23
 
 if [ $? -eq 0 ]; then
     echo "Compilation successful!"
