@@ -537,6 +537,282 @@ TEST_CASE(memory_leak_double_mark) {
     TEST_ASSERT(!found); // Should not be in the list
 }
 
+TEST_CASE(memory_index_sequential) {
+    // Test that allocation indices are assigned sequentially
+    extern u64 g_memory_index;
+    extern KMemoryHeader* g_memory_head;
+
+    u64 initial_index      = g_memory_index;
+
+    void* p1               = KORE_MALLOC(100);
+    void* p2               = KORE_MALLOC(200);
+    void* p3               = KORE_MALLOC(300);
+
+    KMemoryHeader* header1 = (KMemoryHeader*)p1 - 1;
+    KMemoryHeader* header2 = (KMemoryHeader*)p2 - 1;
+    KMemoryHeader* header3 = (KMemoryHeader*)p3 - 1;
+
+    // Indices should be sequential
+    TEST_ASSERT_EQ(header1->index, initial_index + 1);
+    TEST_ASSERT_EQ(header2->index, initial_index + 2);
+    TEST_ASSERT_EQ(header3->index, initial_index + 3);
+
+    // Global index should have advanced
+    TEST_ASSERT_EQ(g_memory_index, initial_index + 3);
+
+    KORE_FREE(p1);
+    KORE_FREE(p2);
+    KORE_FREE(p3);
+}
+
+TEST_CASE(memory_index_realloc_gets_new_index) {
+    // Test that realloc assigns a new index
+    extern u64 g_memory_index;
+
+    u64 initial_index             = g_memory_index;
+
+    void* p                       = KORE_MALLOC(100);
+    KMemoryHeader* initial_header = (KMemoryHeader*)p - 1;
+    u64 first_index               = initial_header->index;
+
+    TEST_ASSERT_EQ(first_index, initial_index + 1);
+
+    // Realloc should get a new index
+    p                         = KORE_REALLOC(p, 200);
+    KMemoryHeader* new_header = (KMemoryHeader*)p - 1;
+    u64 second_index          = new_header->index;
+
+    TEST_ASSERT_EQ(second_index, initial_index + 2);
+    TEST_ASSERT(second_index > first_index);
+    TEST_ASSERT_EQ(g_memory_index, initial_index + 2);
+
+    KORE_FREE(p);
+}
+
+TEST_CASE(memory_index_mixed_operations) {
+    // Test indices with mixed malloc/realloc/free operations
+    extern u64 g_memory_index;
+
+    u64 initial_index      = g_memory_index;
+
+    void* p1               = KORE_MALLOC(100); // index: initial + 1
+    void* p2               = KORE_MALLOC(200); // index: initial + 2
+
+    p1                     = KORE_REALLOC(p1, 150); // index: initial + 3
+
+    void* p3               = KORE_MALLOC(300); // index: initial + 4
+
+    p2                     = KORE_REALLOC(p2, 250); // index: initial + 5
+
+    KMemoryHeader* header1 = (KMemoryHeader*)p1 - 1;
+    KMemoryHeader* header2 = (KMemoryHeader*)p2 - 1;
+    KMemoryHeader* header3 = (KMemoryHeader*)p3 - 1;
+
+    TEST_ASSERT_EQ(header1->index, initial_index + 3); // realloc got new index
+    TEST_ASSERT_EQ(header2->index, initial_index + 5); // realloc got new index
+    TEST_ASSERT_EQ(header3->index, initial_index + 4); // malloc index
+    TEST_ASSERT_EQ(g_memory_index, initial_index + 5);
+
+    KORE_FREE(p1);
+    KORE_FREE(p2);
+    KORE_FREE(p3);
+}
+
+TEST_CASE(memory_index_leak_preserves_index) {
+    // Test that marking as leaked preserves the original index
+    extern u64 g_memory_index;
+
+    u64 initial_index     = g_memory_index;
+
+    void* p               = KORE_MALLOC(100);
+    KMemoryHeader* header = (KMemoryHeader*)p - 1;
+    u64 original_index    = header->index;
+
+    TEST_ASSERT_EQ(original_index, initial_index + 1);
+
+    // Mark as leaked
+    k_memory_leak(p);
+
+    // Index should remain the same
+    TEST_ASSERT_EQ(header->index, original_index);
+    TEST_ASSERT_EQ(header->leaked, true);
+
+    // Global index should not have changed
+    TEST_ASSERT_EQ(g_memory_index, initial_index + 1);
+}
+
+TEST_CASE(memory_index_realloc_leaked_gets_new_index) {
+    // Test that realloc of leaked memory still gets a new index
+    extern u64 g_memory_index;
+
+    u64 initial_index     = g_memory_index;
+
+    void* p               = KORE_MALLOC(100); // index: initial + 1
+    KMemoryHeader* header = (KMemoryHeader*)p - 1;
+    u64 first_index       = header->index;
+
+    // Mark as leaked
+    k_memory_leak(p);
+    TEST_ASSERT_EQ(header->index, first_index); // Index preserved
+
+    // Realloc leaked memory should get new index
+    p                = KORE_REALLOC(p, 200); // index: initial + 2
+    header           = (KMemoryHeader*)p - 1;
+    u64 second_index = header->index;
+
+    TEST_ASSERT_EQ(second_index, initial_index + 2);
+    TEST_ASSERT(second_index > first_index);
+    TEST_ASSERT_EQ(header->leaked, true); // Should still be leaked
+    TEST_ASSERT_EQ(g_memory_index, initial_index + 2);
+
+    // Clean up (free the leaked memory)
+    KORE_FREE(p);
+}
+
+TEST_CASE(memory_index_global_advances_correctly) {
+    // Test that global index advances correctly and never goes backwards
+    extern u64 g_memory_index;
+
+    u64 start_index     = g_memory_index;
+    const usize num_ops = 10;
+    void* ptrs[num_ops];
+
+    // Perform a series of operations and verify index always increases
+    for (usize i = 0; i < num_ops; i++) {
+        u64 before_op = g_memory_index;
+
+        if (i % 3 == 0) {
+            // Malloc
+            ptrs[i] = KORE_MALLOC((i + 1) * 10);
+        } else if (i % 3 == 1 && i > 0) {
+            // Realloc previous allocation
+            ptrs[i]     = KORE_REALLOC(ptrs[i - 1], (i + 1) * 20);
+            ptrs[i - 1] = NULL; // Mark as handled
+        } else {
+            // Another malloc
+            ptrs[i] = KORE_MALLOC((i + 1) * 15);
+        }
+
+        u64 after_op = g_memory_index;
+        TEST_ASSERT(after_op > before_op);       // Index must increase
+        TEST_ASSERT_EQ(after_op, before_op + 1); // Should increase by exactly 1
+
+        KMemoryHeader* header = (KMemoryHeader*)ptrs[i] - 1;
+        TEST_ASSERT_EQ(header->index,
+                       after_op); // Header should have the new index
+    }
+
+    TEST_ASSERT_EQ(g_memory_index, start_index + num_ops);
+
+    // Clean up
+    for (usize i = 0; i < num_ops; i++) {
+        if (ptrs[i]) {
+            KORE_FREE(ptrs[i]);
+        }
+    }
+}
+
+TEST_CASE(memory_break_on_alloc_basic) {
+    // Test basic break-on-alloc functionality (without actually breaking)
+    extern u64 g_memory_break_index;
+    extern u64 g_memory_index;
+
+    u64 original_break_index = g_memory_break_index;
+    u64 initial_index        = g_memory_index;
+
+    // Set break index to a value that won't be hit
+    u64 safe_index           = initial_index + 1000; // Far ahead, won't be hit
+    k_memory_break_on_alloc(safe_index);
+    TEST_ASSERT_EQ(g_memory_break_index, safe_index);
+
+    // Allocate normally (these won't hit the break index)
+    void* p1               = KORE_MALLOC(100); // index: initial + 1
+    KMemoryHeader* header1 = (KMemoryHeader*)p1 - 1;
+    TEST_ASSERT_EQ(header1->index, initial_index + 1);
+
+    void* p2               = KORE_MALLOC(200); // index: initial + 2
+    KMemoryHeader* header2 = (KMemoryHeader*)p2 - 1;
+    TEST_ASSERT_EQ(header2->index, initial_index + 2);
+
+    void* p3               = KORE_MALLOC(300); // index: initial + 3
+    KMemoryHeader* header3 = (KMemoryHeader*)p3 - 1;
+    TEST_ASSERT_EQ(header3->index, initial_index + 3);
+
+    // Verify the break index is still set correctly
+    TEST_ASSERT_EQ(g_memory_break_index, safe_index);
+
+    // Clean up
+    KORE_FREE(p1);
+    KORE_FREE(p2);
+    KORE_FREE(p3);
+
+    // Restore original break index
+    k_memory_break_on_alloc(original_break_index);
+}
+
+TEST_CASE(memory_break_on_alloc_realloc) {
+    // Test break-on-alloc with realloc operations (without actually breaking)
+    extern u64 g_memory_break_index;
+    extern u64 g_memory_index;
+
+    u64 original_break_index = g_memory_break_index;
+    u64 initial_index        = g_memory_index;
+
+    void* p                  = KORE_MALLOC(100); // index: initial + 1
+
+    // Set break index for a safe value that won't be hit
+    u64 safe_index           = initial_index + 1000;
+    k_memory_break_on_alloc(safe_index);
+
+    // Realloc should get next index (initial + 2), which is safe
+    p                     = KORE_REALLOC(p, 200); // index: initial + 2
+    KMemoryHeader* header = (KMemoryHeader*)p - 1;
+    TEST_ASSERT_EQ(header->index, initial_index + 2);
+
+    // Verify break index is still set
+    TEST_ASSERT_EQ(g_memory_break_index, safe_index);
+
+    // Clean up
+    KORE_FREE(p);
+
+    // Restore original break index
+    k_memory_break_on_alloc(original_break_index);
+}
+
+TEST_CASE(memory_index_uniqueness) {
+    // Test that all allocated blocks have unique indices
+    extern u64 g_memory_index;
+
+    const usize num_allocs = 20;
+    void* ptrs[num_allocs];
+    u64 indices[num_allocs];
+
+    // Allocate multiple blocks
+    for (usize i = 0; i < num_allocs; i++) {
+        ptrs[i]               = KORE_MALLOC((i + 1) * 10);
+        KMemoryHeader* header = (KMemoryHeader*)ptrs[i] - 1;
+        indices[i]            = header->index;
+    }
+
+    // Check that all indices are unique
+    for (usize i = 0; i < num_allocs; i++) {
+        for (usize j = i + 1; j < num_allocs; j++) {
+            TEST_ASSERT(indices[i] != indices[j]); // All indices must be unique
+        }
+    }
+
+    // Check that indices are in ascending order
+    for (usize i = 1; i < num_allocs; i++) {
+        TEST_ASSERT(indices[i] >
+                    indices[i - 1]); // Should be strictly increasing
+    }
+
+    // Clean up
+    for (usize i = 0; i < num_allocs; i++) {
+        KORE_FREE(ptrs[i]);
+    }
+}
+
 TEST_SUITE_BEGIN()
 RUN_TEST(allocate_simple);
 RUN_TEST(allocate_multiple_sizes);
@@ -558,4 +834,13 @@ RUN_TEST(memory_leak_realloc_then_mark);
 RUN_TEST(memory_leak_multiple_operations);
 RUN_TEST(memory_leak_null_pointer);
 RUN_TEST(memory_leak_double_mark);
+RUN_TEST(memory_index_sequential);
+RUN_TEST(memory_index_realloc_gets_new_index);
+RUN_TEST(memory_index_mixed_operations);
+RUN_TEST(memory_index_leak_preserves_index);
+RUN_TEST(memory_index_realloc_leaked_gets_new_index);
+RUN_TEST(memory_index_global_advances_correctly);
+RUN_TEST(memory_break_on_alloc_basic);
+RUN_TEST(memory_break_on_alloc_realloc);
+RUN_TEST(memory_index_uniqueness);
 TEST_SUITE_END()
