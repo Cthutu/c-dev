@@ -22,3 +22,4 @@ Some rules for AI generation:
 - Use `run.sh` to run the application.
 - The standard for C in use is C23.
 - All generated files must be under a folder whose name starts with an underscore.
+- Use clang for compilation.

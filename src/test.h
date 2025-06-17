@@ -208,39 +208,165 @@ void test_init(void) {
 }
 
 void test_summary(void) {
-    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE
-           "=== Test Suite Summary ===" TEST_COLOUR_RESET "\n");
-    printf("Total tests run: %d\n", test_total_tests);
+    // Calculate column widths for proper alignment
+    const int label_width = 20;
+    const int value_width = 10;
+    const int total_width =
+        label_width + value_width + 1; // +1 for separator inside
 
-    if (test_passed_tests > 0) {
-        printf(TEST_COLOUR_GREEN "Tests passed: %d" TEST_COLOUR_RESET "\n",
-               test_passed_tests);
+    // Top border
+    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE "┌");
+    for (int i = 0; i < total_width; i++) {
+        printf("─");
     }
+    printf("┐" TEST_COLOUR_RESET "\n");
+
+    // Header
+    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE "│");
+    int header_padding =
+        (total_width - 18) / 2; // "Test Suite Summary" is 18 chars
+    for (int i = 0; i < header_padding; i++) {
+        printf(" ");
+    }
+    printf("Test Suite Summary");
+    for (int i = 0; i < total_width - header_padding - 18; i++) {
+        printf(" ");
+    }
+    printf("│" TEST_COLOUR_RESET "\n");
+
+    // Separator
+    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE "├");
+    for (int i = 0; i < label_width; i++) {
+        printf("─");
+    }
+    printf("┬");
+    for (int i = 0; i < value_width; i++) {
+        printf("─");
+    }
+    printf("┤" TEST_COLOUR_RESET "\n");
+
+    // Column headers
+    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE "│ %-*s │ %-*s │" TEST_COLOUR_RESET
+                                             "\n",
+           label_width - 2,
+           "Metric",
+           value_width - 2,
+           "Value");
+
+    // Separator
+    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE "├");
+    for (int i = 0; i < label_width; i++) {
+        printf("─");
+    }
+    printf("┼");
+    for (int i = 0; i < value_width; i++) {
+        printf("─");
+    }
+    printf("┤" TEST_COLOUR_RESET "\n");
+
+    // Data rows
+    printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET " %-*s " TEST_COLOUR_BLUE
+                            "│" TEST_COLOUR_RESET " %*d " TEST_COLOUR_BLUE
+                            "│" TEST_COLOUR_RESET "\n",
+           label_width - 2,
+           "Total tests run",
+           value_width - 2,
+           test_total_tests);
+
+    printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET " %-*s " TEST_COLOUR_BLUE
+                            "│" TEST_COLOUR_RESET " " TEST_COLOUR_GREEN
+                            "%*d" TEST_COLOUR_RESET " " TEST_COLOUR_BLUE
+                            "│" TEST_COLOUR_RESET "\n",
+           label_width - 2,
+           "Tests passed",
+           value_width - 2,
+           test_passed_tests);
 
     if (test_failed_tests > 0) {
-        printf(TEST_COLOUR_RED "Tests failed: %d" TEST_COLOUR_RESET "\n",
+        printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET " %-*s " TEST_COLOUR_BLUE
+                                "│" TEST_COLOUR_RESET " " TEST_COLOUR_RED
+                                "%*d" TEST_COLOUR_RESET " " TEST_COLOUR_BLUE
+                                "│" TEST_COLOUR_RESET "\n",
+               label_width - 2,
+               "Tests failed",
+               value_width - 2,
                test_failed_tests);
     }
 
-    printf("Total assertions: %d\n", test_total_assertions);
+    printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET " %-*s " TEST_COLOUR_BLUE
+                            "│" TEST_COLOUR_RESET " %*d " TEST_COLOUR_BLUE
+                            "│" TEST_COLOUR_RESET "\n",
+           label_width - 2,
+           "Total assertions",
+           value_width - 2,
+           test_total_assertions);
 
     if (test_total_failures > 0) {
-        printf(TEST_COLOUR_RED "Failed assertions: %d" TEST_COLOUR_RESET "\n",
+        printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET " %-*s " TEST_COLOUR_BLUE
+                                "│" TEST_COLOUR_RESET " " TEST_COLOUR_RED
+                                "%*d" TEST_COLOUR_RESET " " TEST_COLOUR_BLUE
+                                "│" TEST_COLOUR_RESET "\n",
+               label_width - 2,
+               "Failed assertions",
+               value_width - 2,
                test_total_failures);
     }
 
-    printf("\n");
+    // Status section separator
+    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE "├");
+    for (int i = 0; i < label_width; i++) {
+        printf("─");
+    }
+    printf("┴");
+    for (int i = 0; i < value_width; i++) {
+        printf("─");
+    }
+    printf("┤" TEST_COLOUR_RESET "\n");
 
+    // Status message
     if (test_failed_tests == 0) {
-        printf(TEST_COLOUR_GREEN TEST_COLOUR_BOLD
-               "🎉 ALL TESTS PASSED! 🎉" TEST_COLOUR_RESET "\n");
+        const char* status_msg = "🎉 ALL TESTS PASSED! 🎉";
+        int status_len =
+            23; // Length without emoji (emojis count as different widths)
+        int status_padding_left = (total_width - status_len) / 2;
+        int status_padding_right =
+            total_width - status_len - status_padding_left;
+
+        printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET);
+        for (int i = 0; i < status_padding_left; i++) {
+            printf(" ");
+        }
+        printf(TEST_COLOUR_GREEN TEST_COLOUR_BOLD "%s" TEST_COLOUR_RESET,
+               status_msg);
+        for (int i = 0; i < status_padding_right; i++) {
+            printf(" ");
+        }
+        printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET "\n");
     } else {
-        printf(TEST_COLOUR_RED TEST_COLOUR_BOLD
-               "❌ SOME TESTS FAILED ❌" TEST_COLOUR_RESET "\n");
+        const char* status_msg  = "❌ SOME TESTS FAILED ❌";
+        int status_len          = 23; // Length without emoji
+        int status_padding_left = (total_width - status_len) / 2;
+        int status_padding_right =
+            total_width - status_len - status_padding_left;
+
+        printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET);
+        for (int i = 0; i < status_padding_left; i++) {
+            printf(" ");
+        }
+        printf(TEST_COLOUR_RED TEST_COLOUR_BOLD "%s" TEST_COLOUR_RESET,
+               status_msg);
+        for (int i = 0; i < status_padding_right; i++) {
+            printf(" ");
+        }
+        printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET "\n");
     }
 
-    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE
-           "=========================" TEST_COLOUR_RESET "\n");
+    // Bottom border
+    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE "└");
+    for (int i = 0; i < total_width; i++) {
+        printf("─");
+    }
+    printf("┘" TEST_COLOUR_RESET "\n");
 }
 
 #endif // TEST_IMPLEMENTATION
