@@ -3,6 +3,7 @@
 #include <stdio.h>
 
 int main() {
+    k_memory_break_on_alloc(2);
     printf("Hello, World!\n");
     printf("Testing leak tracking with realloc...\n");
 

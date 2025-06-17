@@ -112,6 +112,19 @@
 #    define KORE_DEBUG YES
 #endif
 
+//
+// Debugger support
+//
+
+#if KORE_COMPILER_MSVC
+#    define KORE_DEBUG_BREAK() __debugbreak()
+#elif KORE_COMPILER_GCC || KORE_COMPILER_CLANG
+#    define KORE_DEBUG_BREAK() __builtin_trap()
+#else
+#    error                                                                     \
+        "Unsupported compiler for debug break. Please use GCC, Clang, or MSVC."
+#endif
+
 //-----------------------------------------------------------------------[Types]
 
 typedef uint8_t u8;   // Unsigned 8-bit integer
@@ -151,6 +164,8 @@ usize k_memory_get_total_allocated(void);
     k_memory_realloc((ptr), (size), __FILE__, __LINE__)
 #define KORE_FREE(ptr) k_memory_free((ptr), __FILE__, __LINE__), (ptr) = NULL
 
+void k_memory_break_on_alloc(u64 index);
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 // I M P L E M E N T A T I O N
@@ -170,6 +185,7 @@ typedef struct KMemoryHeader_t {
 #    if KORE_DEBUG
     const char* file; // File where the allocation was made
     int line;         // Line number where the allocation was made
+    u64 index;        // Index of the allocation for debugging purposes
 
     struct KMemoryHeader_t* next; // Pointer to the next header in a linked list
     bool leaked; // Flag to indicate if this block was leaked and therefore
@@ -181,7 +197,9 @@ typedef struct KMemoryHeader_t {
 // Global pointer to the head of the linked list of allocated memory blocks
 #    if KORE_DEBUG
 static KMemoryHeader* g_memory_head = NULL;
-#    endif // KORE_DEBUG
+static u64 g_memory_index           = 0; // Global index for allocations
+static u64 g_memory_break_index     = 0; // Index to break on allocation
+#    endif                           // KORE_DEBUG
 
 void* k_memory_alloc(usize size, const char* file, int line) {
     KMemoryHeader* header =
@@ -196,11 +214,17 @@ void* k_memory_alloc(usize size, const char* file, int line) {
 #    if KORE_DEBUG
     header->file   = file;
     header->line   = line;
-    header->leaked = false; // Initialise leaked flag
+    header->leaked = false;            // Initialise leaked flag
+    header->index  = ++g_memory_index; // Assign and increment index
+
+    // Check if we should break on this allocation
+    if (header->index == g_memory_break_index) {
+        KORE_DEBUG_BREAK();
+    }
 
     // Add to linked list
-    header->next   = g_memory_head;
-    g_memory_head  = header;
+    header->next  = g_memory_head;
+    g_memory_head = header;
 #    endif // KORE_DEBUG
 
     return (void*)(header + 1);
@@ -248,6 +272,11 @@ void* k_memory_realloc(void* ptr, usize size, const char* file, int line) {
     header->file   = file;
     header->line   = line;
     header->leaked = was_leaked; // Preserve the leaked flag
+    header->index  = ++g_memory_index;
+
+    if (header->index == g_memory_break_index) {
+        KORE_DEBUG_BREAK(); // Break if this allocation matches the break index
+    }
 
     // Add new header to linked list only if it's not leaked
     if (!header->leaked) {
@@ -324,6 +353,12 @@ void k_memory_leak(void* ptr) {
 #    endif // KORE_DEBUG
 }
 
+void k_memory_break_on_alloc(u64 index) {
+#    if KORE_DEBUG
+    g_memory_break_index = index;
+#    endif
+}
+
 #    if KORE_DEBUG
 
 // Memory debugging utilities
@@ -341,11 +376,11 @@ void k_memory_print_leaks(void) {
     printf("========================\n");
 
     while (current) {
-        printf("Leak #%zu: %zu bytes allocated at %s:%d\n",
-               leak_count + 1,
-               current->size,
+        printf("[%zu] %s:%d: %zu bytes allocated\n",
+               current->index,
                current->file,
-               current->line);
+               current->line,
+               current->size);
         total_leaked += current->size;
         leak_count++;
         current = current->next;

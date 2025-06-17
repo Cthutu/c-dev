@@ -488,6 +488,10 @@ TEST_CASE(memory_leak_multiple_operations) {
     // Clean up the non-leaked allocation
     KORE_FREE(p1_new);
     TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
+
+    // Clean up the leaked allocations
+    KORE_FREE(p2_new);
+    KORE_FREE(p3);
 }
 
 TEST_CASE(memory_leak_null_pointer) {
