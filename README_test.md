@@ -51,13 +51,37 @@ The test framework supports two output modes:
 - **Quiet mode (default)**: Only shows test names for passing tests and full details for failing tests
 - **Verbose mode**: Shows all assertion details for both passing and failing tests
 
-To enable verbose mode, define `TEST_VERBOSE` as `1` before including the header:
+#### Enabling Verbose Mode
+
+There are two ways to enable verbose mode:
+
+**1. Environment Variable (Recommended)**
+Set the `TEST_VERBOSE` environment variable before running your tests:
+
+```bash
+# Enable verbose mode
+TEST_VERBOSE=1 ./test_program
+
+# Alternative values that enable verbose mode
+TEST_VERBOSE=true ./test_program
+TEST_VERBOSE=yes ./test_program
+
+# Disable verbose mode (default)
+TEST_VERBOSE=0 ./test_program
+# or simply don't set the variable
+./test_program
+```
+
+**2. Compile-time Define (Legacy)**
+Define `TEST_VERBOSE` as `1` before including the header:
 
 ```c
 #define TEST_VERBOSE 1
 #define TEST_IMPLEMENTATION
 #include "test.h"
 ```
+
+The environment variable takes precedence over the compile-time define if both are present.
 
 #### Quiet Mode Output (Default)
 ```
@@ -110,7 +134,12 @@ TEST_SUITE_END()
 Compile your test file like any other C program:
 ```bash
 clang -o test_program test_file.c -std=c23
+
+# Run with default quiet mode
 ./test_program
+
+# Run with verbose mode
+TEST_VERBOSE=1 ./test_program
 ```
 
 ### Output
@@ -126,7 +155,7 @@ The framework provides colourised output with two verbosity modes:
 #### Verbose Mode  
 - Shows all assertion details like the original behaviour
 - Useful for debugging or when you need to see every assertion
-- Enable with `#define TEST_VERBOSE 1`
+- Enable with environment variable `TEST_VERBOSE=1` or compile-time `#define TEST_VERBOSE 1`
 
 The framework uses the following colours:
 - 🟢 Green for passing tests and assertions

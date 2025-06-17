@@ -15,7 +15,8 @@
 #define TEST_COLOUR_WHITE "\033[37m"
 #define TEST_COLOUR_BOLD "\033[1m"
 
-// Test output verbosity control
+// Test output verbosity control (can be overridden by TEST_VERBOSE environment
+// variable)
 #ifndef TEST_VERBOSE
 #    define TEST_VERBOSE                                                       \
         0 // 0 = quiet (only show failures), 1 = verbose (show all assertions)
@@ -33,7 +34,7 @@
             printf("    Expected: %s\n", #condition);                          \
             test_current_failures++;                                           \
             test_total_failures++;                                             \
-        } else if (TEST_VERBOSE) {                                             \
+        } else if (test_verbose_output) {                                      \
             printf("  " TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET " %s\n",       \
                    #condition);                                                \
         }                                                                      \
@@ -50,7 +51,7 @@
             printf("    Expected: %s == %s\n", #a, #b);                        \
             test_current_failures++;                                           \
             test_total_failures++;                                             \
-        } else if (TEST_VERBOSE) {                                             \
+        } else if (test_verbose_output) {                                      \
             printf("  " TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET " %s == %s\n", \
                    #a,                                                         \
                    #b);                                                        \
@@ -68,7 +69,7 @@
             printf("    Expected: \"%s\" == \"%s\"\n", (a), (b));              \
             test_current_failures++;                                           \
             test_total_failures++;                                             \
-        } else if (TEST_VERBOSE) {                                             \
+        } else if (test_verbose_output) {                                      \
             printf("  " TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET                \
                    " \"%s\" == \"%s\"\n",                                      \
                    (a),                                                        \
@@ -87,7 +88,7 @@
             printf("    Expected: %s to be NULL\n", #ptr);                     \
             test_current_failures++;                                           \
             test_total_failures++;                                             \
-        } else if (TEST_VERBOSE) {                                             \
+        } else if (test_verbose_output) {                                      \
             printf("  " TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET                \
                    " %s is NULL\n",                                            \
                    #ptr);                                                      \
@@ -105,7 +106,7 @@
             printf("    Expected: %s to be non-NULL\n", #ptr);                 \
             test_current_failures++;                                           \
             test_total_failures++;                                             \
-        } else if (TEST_VERBOSE) {                                             \
+        } else if (test_verbose_output) {                                      \
             printf("  " TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET                \
                    " %s is not NULL\n",                                        \
                    #ptr);                                                      \
@@ -119,7 +120,7 @@
 #define RUN_TEST(name)                                                         \
     do {                                                                       \
         test_current_failures = 0;                                             \
-        if (TEST_VERBOSE) {                                                    \
+        if (test_verbose_output) {                                             \
             printf(TEST_COLOUR_CYAN TEST_COLOUR_BOLD                           \
                    "Running test: %s" TEST_COLOUR_RESET "\n",                  \
                    #name);                                                     \
@@ -163,6 +164,9 @@ extern int test_total_assertions;
 extern int test_total_failures;
 extern int test_current_failures;
 
+// Global verbosity flag (set at runtime from environment variable)
+extern int test_verbose_output;
+
 #ifdef TEST_IMPLEMENTATION
 
 // Global test counters
@@ -173,6 +177,9 @@ int test_total_assertions = 0;
 int test_total_failures   = 0;
 int test_current_failures = 0;
 
+// Global verbosity flag (set at runtime from environment variable)
+int test_verbose_output   = TEST_VERBOSE;
+
 void test_init(void) {
     test_total_tests      = 0;
     test_passed_tests     = 0;
@@ -180,6 +187,24 @@ void test_init(void) {
     test_total_assertions = 0;
     test_total_failures   = 0;
     test_current_failures = 0;
+
+    // Check for TEST_VERBOSE environment variable
+#    ifdef _MSC_VER
+#        pragma warning(push)
+#        pragma warning(disable : 4996) // Suppress deprecated function warning
+#    endif
+    const char* verbose_env = getenv("TEST_VERBOSE");
+#    ifdef _MSC_VER
+#        pragma warning(pop)
+#    endif
+    if (verbose_env != NULL) {
+        test_verbose_output = (strcmp(verbose_env, "1") == 0 ||
+                               strcmp(verbose_env, "true") == 0 ||
+                               strcmp(verbose_env, "yes") == 0);
+    } else {
+        // Fall back to compile-time default
+        test_verbose_output = TEST_VERBOSE;
+    }
 }
 
 void test_summary(void) {
