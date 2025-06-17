@@ -44,6 +44,44 @@ TEST_SUITE_END()
 - `TEST_ASSERT_NULL(ptr)` - Assert that a pointer is NULL
 - `TEST_ASSERT_NOT_NULL(ptr)` - Assert that a pointer is not NULL
 
+### Output Verbosity
+
+The test framework supports two output modes:
+
+- **Quiet mode (default)**: Only shows test names for passing tests and full details for failing tests
+- **Verbose mode**: Shows all assertion details for both passing and failing tests
+
+To enable verbose mode, define `TEST_VERBOSE` as `1` before including the header:
+
+```c
+#define TEST_VERBOSE 1
+#define TEST_IMPLEMENTATION
+#include "test.h"
+```
+
+#### Quiet Mode Output (Default)
+```
+=== Test Suite Started ===
+✓ test_addition_success
+✓ test_multiplication_success
+  ✗ ASSERTION FAILED at test_file.c:30
+    Expected: buggy_divide(10, 2) == 5
+✗ test_division_failure FAILED (1 assertions failed)
+```
+
+#### Verbose Mode Output
+```
+=== Test Suite Started ===
+Running test: test_addition_success
+  ✓ add(2, 3) == 5
+  ✓ add(-1, 1) == 0
+✓ test_addition_success
+Running test: test_division_failure
+  ✗ ASSERTION FAILED at test_file.c:30
+    Expected: buggy_divide(10, 2) == 5
+✗ test_division_failure FAILED (1 assertions failed)
+```
+
 ### Complete Example
 
 ```c
@@ -77,7 +115,20 @@ clang -o test_program test_file.c -std=c23
 
 ### Output
 
-The framework provides colorized output:
+The framework provides colourised output with two verbosity modes:
+
+#### Quiet Mode (Default)
+- 🟢 Green checkmark and test name for passing tests
+- 🔴 Red details for failing assertions and test summary
+- 🔵 Blue for test suite headers
+- Much cleaner output that makes failures easy to spot
+
+#### Verbose Mode  
+- Shows all assertion details like the original behaviour
+- Useful for debugging or when you need to see every assertion
+- Enable with `#define TEST_VERBOSE 1`
+
+The framework uses the following colours:
 - 🟢 Green for passing tests and assertions
 - 🔴 Red for failing tests and assertions  
 - 🔵 Blue for test suite headers
@@ -91,21 +142,21 @@ The test program returns:
 
 This makes it suitable for use in CI/CD pipelines and build systems.
 
-## Color Codes
+## Colour Codes
 
-The framework uses the following ANSI color codes:
-- `TEST_COLOR_RED` - Red text
-- `TEST_COLOR_GREEN` - Green text
-- `TEST_COLOR_BLUE` - Blue text
-- `TEST_COLOR_YELLOW` - Yellow text
-- `TEST_COLOR_CYAN` - Cyan text
-- `TEST_COLOR_MAGENTA` - Magenta text
-- `TEST_COLOR_WHITE` - White text
-- `TEST_COLOR_BOLD` - Bold text
-- `TEST_COLOR_RESET` - Reset to default
+The framework uses the following ANSI colour codes:
+- `TEST_COLOUR_RED` - Red text
+- `TEST_COLOUR_GREEN` - Green text
+- `TEST_COLOUR_BLUE` - Blue text
+- `TEST_COLOUR_YELLOW` - Yellow text
+- `TEST_COLOUR_CYAN` - Cyan text
+- `TEST_COLOUR_MAGENTA` - Magenta text
+- `TEST_COLOUR_WHITE` - White text
+- `TEST_COLOUR_BOLD` - Bold text
+- `TEST_COLOUR_RESET` - Reset to default
 
 You can use these in your own output if needed.
 
-## License
+## Licence
 
 This is a simple header-only library. Feel free to use it in your projects.
