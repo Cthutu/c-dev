@@ -71,34 +71,18 @@ typedef struct {
 #define TEST_ASSERT_EQ(a, b)                                                   \
     do {                                                                       \
         test_total_assertions++;                                               \
-        auto _test_val_a = (a);                                               \
-        auto _test_val_b = (b);                                               \
-        if (_test_val_a != _test_val_b) {                                     \
+        auto _test_val_a = (a);                                                \
+        auto _test_val_b = (b);                                                \
+        /* Convert both to the wider type to avoid sign comparison */          \
+        long long _cmp_a = (long long)_test_val_a;                             \
+        long long _cmp_b = (long long)_test_val_b;                             \
+        if (_cmp_a != _cmp_b) {                                                \
             printf("  " TEST_COLOUR_RED "✗ ASSERTION FAILED" TEST_COLOUR_RESET \
                    " at %s:%d\n",                                              \
                    __FILE__,                                                   \
                    __LINE__);                                                  \
             printf("    Expected: %s == %s\n", #a, #b);                        \
-            printf("    Actual: ");                                           \
-            _Generic(_test_val_a,                                              \
-                int: printf("%d != %d", _test_val_a, _test_val_b),            \
-                long: printf("%ld != %ld", _test_val_a, _test_val_b),         \
-                long long: printf("%lld != %lld", _test_val_a, _test_val_b),  \
-                unsigned int: printf("%u != %u", _test_val_a, _test_val_b),   \
-                unsigned long: printf("%lu != %lu", _test_val_a, _test_val_b), \
-                unsigned long long: printf("%llu != %llu", _test_val_a, _test_val_b), \
-                float: printf("%.6f != %.6f", _test_val_a, _test_val_b),      \
-                double: printf("%.6f != %.6f", _test_val_a, _test_val_b),     \
-                char: printf("'%c' != '%c'", _test_val_a, _test_val_b),       \
-                unsigned char: printf("%u != %u", (unsigned int)_test_val_a, (unsigned int)_test_val_b), \
-                signed char: printf("%d != %d", (int)_test_val_a, (int)_test_val_b), \
-                short: printf("%d != %d", (int)_test_val_a, (int)_test_val_b), \
-                unsigned short: printf("%u != %u", (unsigned int)_test_val_a, (unsigned int)_test_val_b), \
-                bool: printf("%s != %s", _test_val_a ? "true" : "false", _test_val_b ? "true" : "false"), \
-                void*: printf("%p != %p", _test_val_a, _test_val_b),          \
-                default: printf("(values differ)")                            \
-            );                                                                 \
-            printf("\n");                                                      \
+            printf("    Values differ\n");                                     \
             test_current_failures++;                                           \
             test_total_failures++;                                             \
         } else if (test_verbose_output) {                                      \

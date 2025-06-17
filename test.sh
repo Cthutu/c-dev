@@ -2,7 +2,7 @@
 
 # Compile the test example
 echo "Compiling tests..."
-clang -o _bin/test src/test_kore.c -std=c23
+clang -o _bin/test src/test_kore.c -std=c23 -Wall -Wextra -Werror
 
 if [ $? -eq 0 ]; then
     echo "Compilation successful!"

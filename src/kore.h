@@ -14,6 +14,7 @@
 // [Config]             Configuration macros and settings
 // [Types]              Basic types and definitions
 // [Memory]             Memory management functions
+// [Array]              Dynamic array implementation
 //
 //------------------------------------------------------------------------------
 
@@ -145,26 +146,46 @@ typedef double f64; // 64-bit floating point
 
 //----------------------------------------------------------------------[Memory]
 
-void* k_memory_alloc(usize size, const char* file, int line);
-void* k_memory_realloc(void* ptr, usize size, const char* file, int line);
-void k_memory_free(void* ptr, const char* file, int line);
+void* memory_alloc(usize size, const char* file, int line);
+void* memory_realloc(void* ptr, usize size, const char* file, int line);
+void memory_free(void* ptr, const char* file, int line);
 
-usize k_memory_size(const void* ptr);
-void k_memory_leak(void* ptr);
+usize memory_size(const void* ptr);
+void memory_leak(void* ptr);
 
 // Memory debugging utilities
 #if KORE_DEBUG
-void k_memory_print_leaks(void);
-usize k_memory_get_allocation_count(void);
-usize k_memory_get_total_allocated(void);
+void memory_print_leaks(void);
+usize memory_get_allocation_count(void);
+usize memory_get_total_allocated(void);
 #endif // KORE_DEBUG
 
-#define KORE_MALLOC(size) k_memory_alloc((size), __FILE__, __LINE__)
+#define KORE_MALLOC(size) memory_alloc((size), __FILE__, __LINE__)
 #define KORE_REALLOC(ptr, size)                                                \
-    k_memory_realloc((ptr), (size), __FILE__, __LINE__)
-#define KORE_FREE(ptr) k_memory_free((ptr), __FILE__, __LINE__), (ptr) = NULL
+    memory_realloc((ptr), (size), __FILE__, __LINE__)
+#define KORE_FREE(ptr) memory_free((ptr), __FILE__, __LINE__), (ptr) = NULL
 
-void k_memory_break_on_alloc(u64 index);
+void memory_break_on_alloc(u64 index);
+
+//-----------------------------------------------------------------------[Array]
+
+#define Array(T) T*
+
+typedef struct KArrayHeader_t {
+    usize capacity;
+} KArrayHeader;
+
+// Level 0 accessor macros - assumes that (a) is non-NULL and is a valid array
+#define __array_info(a) ((KArrayHeader*)(a) - 1)
+#define __array_bytes_size(a) (memory_size(__array_info(a)))
+#define __array_bytes_capacity(a) (__array_info(a)->capacity)
+#define __array_count(a) (__array_bytes_size(a) / sizeof(*(a)))
+#define __array_safe(a, op) ((a) ? (op) : 0)
+
+// Level 1 accessor macros - handles a NULL array
+#define array_size(a) __array_safe((a), __array_bytes_size(a))
+#define array_capacity(a) __array_safe((a), __array_bytes_capacity(a))
+#define array_count(a) __array_safe((a), __array_count(a))
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -201,7 +222,7 @@ static u64 g_memory_index           = 0; // Global index for allocations
 static u64 g_memory_break_index     = 0; // Index to break on allocation
 #    endif                           // KORE_DEBUG
 
-void* k_memory_alloc(usize size, const char* file, int line) {
+void* memory_alloc(usize size, const char* file, int line) {
     KMemoryHeader* header =
         (KMemoryHeader*)malloc(sizeof(KMemoryHeader) + size);
     if (!header) {
@@ -230,9 +251,9 @@ void* k_memory_alloc(usize size, const char* file, int line) {
     return (void*)(header + 1);
 }
 
-void* k_memory_realloc(void* ptr, usize size, const char* file, int line) {
+void* memory_realloc(void* ptr, usize size, const char* file, int line) {
     if (!ptr) {
-        return k_memory_alloc(size, file, line);
+        return memory_alloc(size, file, line);
     }
 
     KMemoryHeader* old_header = (KMemoryHeader*)ptr - 1;
@@ -288,7 +309,7 @@ void* k_memory_realloc(void* ptr, usize size, const char* file, int line) {
     return (void*)(header + 1);
 }
 
-void k_memory_free(void* ptr, const char* file, int line) {
+void memory_free(void* ptr, const char* file, int line) {
     (void)file; // Suppress unused parameter warning
     (void)line; // Suppress unused parameter warning
 
@@ -318,7 +339,7 @@ void k_memory_free(void* ptr, const char* file, int line) {
     free(header);
 }
 
-usize k_memory_size(const void* ptr) {
+usize memory_size(const void* ptr) {
     if (!ptr) {
         return 0;
     }
@@ -327,7 +348,7 @@ usize k_memory_size(const void* ptr) {
     return header->size;
 }
 
-void k_memory_leak(void* ptr) {
+void memory_leak(void* ptr) {
 #    if KORE_DEBUG
 
     if (!ptr) {
@@ -353,7 +374,7 @@ void k_memory_leak(void* ptr) {
 #    endif // KORE_DEBUG
 }
 
-void k_memory_break_on_alloc(u64 index) {
+void memory_break_on_alloc(u64 index) {
 #    if KORE_DEBUG
     g_memory_break_index = index;
 #    endif
@@ -362,7 +383,7 @@ void k_memory_break_on_alloc(u64 index) {
 #    if KORE_DEBUG
 
 // Memory debugging utilities
-void k_memory_print_leaks(void) {
+void memory_print_leaks(void) {
     KMemoryHeader* current = g_memory_head;
     usize leak_count       = 0;
     usize total_leaked     = 0;
@@ -390,7 +411,7 @@ void k_memory_print_leaks(void) {
     printf("Total: %zu leaks, %zu bytes\n", leak_count, total_leaked);
 }
 
-usize k_memory_get_allocation_count(void) {
+usize memory_get_allocation_count(void) {
     usize count            = 0;
     KMemoryHeader* current = g_memory_head;
 
@@ -402,7 +423,7 @@ usize k_memory_get_allocation_count(void) {
     return count;
 }
 
-usize k_memory_get_total_allocated(void) {
+usize memory_get_total_allocated(void) {
     usize total            = 0;
     KMemoryHeader* current = g_memory_head;
 
