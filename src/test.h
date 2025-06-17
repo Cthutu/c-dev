@@ -143,6 +143,10 @@ typedef struct {
 
 #define TEST_CASE(category, name)                                              \
     void test_##category##_##name(void);                                       \
+    __attribute__((                                                            \
+        constructor)) static void register_test_##category##_##name(void) {    \
+        test_register(test_##category##_##name, #category, #name);             \
+    }                                                                          \
     void test_##category##_##name(void)
 
 #define RUN_TEST(category, name)                                               \
@@ -191,7 +195,6 @@ typedef struct {
 
 #define RUN_ALL_TESTS()                                                        \
     do {                                                                       \
-        test_register_all_tests();                                             \
         for (int i = 0; i < test_registry_count; i++) {                        \
             RegisteredTest* test = &test_registry[i];                          \
             if (test_should_run(test->category, test->name, &options)) {       \
@@ -250,7 +253,6 @@ void test_print_help(const char* program_name);
 int test_should_run(const char* category,
                     const char* name,
                     const TestOptions* options);
-void test_register_all_tests(void);
 
 // Global test counters (declared here, defined in implementation)
 extern int test_total_tests;

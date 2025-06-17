@@ -51,32 +51,33 @@ TEST_SUITE_END()
 
 ### Automatic Test Discovery (NEW!)
 
-The framework now supports automatic test discovery using the `RUN_ALL_TESTS()` macro. To use this feature:
+The framework now supports fully automatic test discovery using the `RUN_ALL_TESTS()` macro with constructor attributes. **No manual test lists required!**
 
-1. Define all your tests using the `TEST_CASE` macro as usual
-2. Create an X-macro list of all tests in your test file:
+#### Simple Usage (Recommended)
 
 ```c
-// Define all tests using X-macro pattern
-#define ALL_TESTS \
-    X(arithmetic, addition) \
-    X(arithmetic, subtraction) \
-    X(memory, allocation) \
-    X(memory, deallocation)
-
-// Generate test registration function
-void test_register_all_tests(void) {
-#define X(category, name) test_register(test_##category##_##name, #category, #name);
-    ALL_TESTS
-#undef X
+// Just define your tests - they're automatically registered!
+TEST_CASE(arithmetic, addition) {
+    TEST_ASSERT_EQ(2 + 2, 4);
 }
 
+TEST_CASE(arithmetic, subtraction) {
+    TEST_ASSERT_EQ(5 - 3, 2);
+}
+
+TEST_CASE(memory, allocation) {
+    void* ptr = malloc(100);
+    TEST_ASSERT_NOT_NULL(ptr);
+    free(ptr);
+}
+
+// That's it! Just run all tests automatically
 TEST_SUITE_BEGIN()
     RUN_ALL_TESTS();
 TEST_SUITE_END()
 ```
 
-This approach automatically discovers and runs all tests without requiring manual `RUN_TEST` calls for each test.
+The `TEST_CASE` macro automatically registers each test using constructor attributes, so you don't need to maintain any lists or call any registration functions. Just write tests and they'll be discovered automatically!
 
 ### Command Line Options (NEW!)
 
