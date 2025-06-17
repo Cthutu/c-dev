@@ -12,6 +12,8 @@ To run the unit tests, use `test.sh`.
 
 To delete all the generated files, use `clean.sh`.
 
+You can also use `just` to build, run, test and clean also.
+
 ## AI Rules
 
 Some rules for AI generation:

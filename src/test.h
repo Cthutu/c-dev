@@ -113,29 +113,38 @@
         }                                                                      \
     } while (0)
 
-#define TEST_CASE(name)                                                        \
-    void test_##name(void);                                                    \
-    void test_##name(void)
+#define TEST_CASE(category, name)                                              \
+    void test_##category##_##name(void);                                       \
+    void test_##category##_##name(void)
 
-#define RUN_TEST(name)                                                         \
+#define RUN_TEST(category, name)                                               \
     do {                                                                       \
         test_current_failures = 0;                                             \
+        test_track_category(#category);                                        \
         if (test_verbose_output) {                                             \
             printf(TEST_COLOUR_CYAN TEST_COLOUR_BOLD                           \
-                   "Running test: %s" TEST_COLOUR_RESET "\n",                  \
+                   "Running test: %s::%s" TEST_COLOUR_RESET "\n",              \
+                   #category,                                                  \
                    #name);                                                     \
         }                                                                      \
-        test_##name();                                                         \
+        test_##category##_##name();                                            \
         if (test_current_failures == 0) {                                      \
-            printf(TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET " %s\n", #name);    \
+            if (test_verbose_output) {                                         \
+                printf(TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET " %s::%s\n",    \
+                       #category,                                              \
+                       #name);                                                 \
+            }                                                                  \
             test_passed_tests++;                                               \
+            test_update_category_stats(#category, 1, 0);                       \
         } else {                                                               \
             printf(TEST_COLOUR_RED                                             \
-                   "✗ %s FAILED (%d assertions failed)" TEST_COLOUR_RESET      \
+                   "✗ %s::%s FAILED (%d assertions failed)" TEST_COLOUR_RESET  \
                    "\n",                                                       \
+                   #category,                                                  \
                    #name,                                                      \
                    test_current_failures);                                     \
             test_failed_tests++;                                               \
+            test_update_category_stats(#category, 0, 1);                       \
         }                                                                      \
         test_total_tests++;                                                    \
     } while (0)
@@ -147,6 +156,9 @@
                "=== Test Suite Started ===" TEST_COLOUR_RESET "\n");
 
 #define TEST_SUITE_END()                                                       \
+    if (!test_verbose_output) {                                                \
+        test_print_category_summary();                                         \
+    }                                                                          \
     printf("\n");                                                              \
     test_summary();                                                            \
     return test_failed_tests > 0 ? 1 : 0;                                      \
@@ -155,6 +167,20 @@
 // Function declarations
 void test_init(void);
 void test_summary(void);
+void test_track_category(const char* category);
+void test_update_category_stats(const char* category, int passed, int failed);
+void test_print_category_summary(void);
+
+// Test category structure
+#define MAX_CATEGORIES 50
+#define MAX_CATEGORY_NAME_LENGTH 64
+
+typedef struct {
+    char name[MAX_CATEGORY_NAME_LENGTH];
+    int passed_tests;
+    int failed_tests;
+    int total_tests;
+} TestCategory;
 
 // Global test counters (declared here, defined in implementation)
 extern int test_total_tests;
@@ -163,6 +189,10 @@ extern int test_failed_tests;
 extern int test_total_assertions;
 extern int test_total_failures;
 extern int test_current_failures;
+
+// Global category tracking
+extern TestCategory test_categories[MAX_CATEGORIES];
+extern int test_category_count;
 
 // Global verbosity flag (set at runtime from environment variable)
 extern int test_verbose_output;
@@ -177,8 +207,12 @@ int test_total_assertions = 0;
 int test_total_failures   = 0;
 int test_current_failures = 0;
 
+// Global category tracking
+TestCategory test_categories[MAX_CATEGORIES];
+int test_category_count = 0;
+
 // Global verbosity flag (set at runtime from environment variable)
-int test_verbose_output   = TEST_VERBOSE;
+int test_verbose_output = TEST_VERBOSE;
 
 void test_init(void) {
     test_total_tests      = 0;
@@ -187,6 +221,15 @@ void test_init(void) {
     test_total_assertions = 0;
     test_total_failures   = 0;
     test_current_failures = 0;
+    test_category_count   = 0;
+
+    // Initialise categories
+    for (int i = 0; i < MAX_CATEGORIES; i++) {
+        test_categories[i].name[0]      = '\0';
+        test_categories[i].passed_tests = 0;
+        test_categories[i].failed_tests = 0;
+        test_categories[i].total_tests  = 0;
+    }
 
     // Check for TEST_VERBOSE environment variable
 #    ifdef _MSC_VER
@@ -204,6 +247,67 @@ void test_init(void) {
     } else {
         // Fall back to compile-time default
         test_verbose_output = TEST_VERBOSE;
+    }
+}
+
+void test_track_category(const char* category) {
+    // Check if category already exists
+    for (int i = 0; i < test_category_count; i++) {
+        if (strcmp(test_categories[i].name, category) == 0) {
+            return; // Category already exists
+        }
+    }
+
+    // Add new category if we have space
+    if (test_category_count < MAX_CATEGORIES) {
+        // Safer string copy
+        size_t category_len = strlen(category);
+        size_t copy_len     = (category_len < MAX_CATEGORY_NAME_LENGTH - 1)
+                                  ? category_len
+                                  : MAX_CATEGORY_NAME_LENGTH - 1;
+        memcpy(test_categories[test_category_count].name, category, copy_len);
+        test_categories[test_category_count].name[copy_len] = '\0';
+
+        test_categories[test_category_count].passed_tests   = 0;
+        test_categories[test_category_count].failed_tests   = 0;
+        test_categories[test_category_count].total_tests    = 0;
+        test_category_count++;
+    }
+}
+
+void test_update_category_stats(const char* category, int passed, int failed) {
+    for (int i = 0; i < test_category_count; i++) {
+        if (strcmp(test_categories[i].name, category) == 0) {
+            test_categories[i].passed_tests += passed;
+            test_categories[i].failed_tests += failed;
+            test_categories[i].total_tests += (passed + failed);
+            return;
+        }
+    }
+}
+
+void test_print_category_summary(void) {
+    if (test_category_count == 0) {
+        return; // No categories to display
+    }
+
+    printf(TEST_COLOUR_BOLD TEST_COLOUR_BLUE
+           "\n=== Test Categories Summary ===" TEST_COLOUR_RESET "\n");
+
+    for (int i = 0; i < test_category_count; i++) {
+        TestCategory* cat = &test_categories[i];
+        if (cat->failed_tests > 0) {
+            printf(TEST_COLOUR_RED "✗" TEST_COLOUR_RESET " %s: %d/%d passed\n",
+                   cat->name,
+                   cat->passed_tests,
+                   cat->total_tests);
+        } else {
+            printf(TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET
+                                     " %s: %d/%d passed\n",
+                   cat->name,
+                   cat->passed_tests,
+                   cat->total_tests);
+        }
     }
 }
 

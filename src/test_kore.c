@@ -5,7 +5,7 @@
 #include "test.h"
 #include <string.h>
 
-TEST_CASE(allocate_simple) {
+TEST_CASE(memory, simple) {
     void* p = KORE_MALLOC(100);
     TEST_ASSERT_NOT_NULL(p);
 
@@ -16,7 +16,7 @@ TEST_CASE(allocate_simple) {
     TEST_ASSERT_NULL(p); // p should still be NULL after free
 }
 
-TEST_CASE(allocate_multiple_sizes) {
+TEST_CASE(memory, multiple_sizes) {
     // Test various allocation sizes
     void* p1 = KORE_MALLOC(1);
     void* p2 = KORE_MALLOC(1024);
@@ -39,7 +39,7 @@ TEST_CASE(allocate_multiple_sizes) {
     TEST_ASSERT_NULL(p3);
 }
 
-TEST_CASE(memory_realloc_basic) {
+TEST_CASE(memory, basic) {
     void* p = KORE_MALLOC(100);
     TEST_ASSERT_NOT_NULL(p);
     TEST_ASSERT_EQ(k_memory_size(p), 100);
@@ -58,7 +58,7 @@ TEST_CASE(memory_realloc_basic) {
     TEST_ASSERT_NULL(p);
 }
 
-TEST_CASE(memory_realloc_null_ptr) {
+TEST_CASE(memory, null_ptr) {
     // Realloc with NULL pointer should behave like malloc
     void* p = KORE_REALLOC(NULL, 100);
     TEST_ASSERT_NOT_NULL(p);
@@ -68,20 +68,20 @@ TEST_CASE(memory_realloc_null_ptr) {
     TEST_ASSERT_NULL(p);
 }
 
-TEST_CASE(memory_free_null) {
+TEST_CASE(memory, free_null) {
     // Freeing NULL should not crash
     void* p = NULL;
     KORE_FREE(p); // Should be safe
     TEST_ASSERT_NULL(p);
 }
 
-TEST_CASE(memory_size_null) {
+TEST_CASE(memory, size_null) {
     // Size of NULL pointer should return 0
     usize size = k_memory_size(NULL);
     TEST_ASSERT_EQ(size, 0);
 }
 
-TEST_CASE(memory_allocation_tracking) {
+TEST_CASE(memory, allocation_tracking) {
     // Test allocation count tracking (KORE_DEBUG only)
     usize initial_count = k_memory_get_allocation_count();
     usize initial_total = k_memory_get_total_allocated();
@@ -101,7 +101,7 @@ TEST_CASE(memory_allocation_tracking) {
     TEST_ASSERT_EQ(k_memory_get_total_allocated(), initial_total);
 }
 
-TEST_CASE(memory_realloc_tracking) {
+TEST_CASE(memory, realloc_tracking) {
     // Test that realloc properly updates tracking
     usize initial_count = k_memory_get_allocation_count();
     usize initial_total = k_memory_get_total_allocated();
@@ -123,7 +123,7 @@ TEST_CASE(memory_realloc_tracking) {
     TEST_ASSERT_EQ(k_memory_get_total_allocated(), initial_total);
 }
 
-TEST_CASE(memory_leak_detection) {
+TEST_CASE(memory, basic_detection) {
     // Test leak detection by intentionally leaking memory
     usize initial_count = k_memory_get_allocation_count();
 
@@ -141,7 +141,7 @@ TEST_CASE(memory_leak_detection) {
     TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
 }
 
-TEST_CASE(memory_stress_allocation) {
+TEST_CASE(memory, many_allocations) {
     // Stress test with many small allocations
     const usize num_allocs = 100;
     void* ptrs[num_allocs];
@@ -166,7 +166,7 @@ TEST_CASE(memory_stress_allocation) {
     TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
 }
 
-TEST_CASE(memory_header_linked_list) {
+TEST_CASE(memory, basic_structure) {
     // Test the internal linked list structure
     // Access the global memory head (declared in kore.h implementation)
     extern KMemoryHeader* g_memory_head;
@@ -220,7 +220,7 @@ TEST_CASE(memory_header_linked_list) {
     TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
 }
 
-TEST_CASE(memory_header_realloc_list_update) {
+TEST_CASE(memory, realloc_list_update) {
     // Test that realloc properly updates the linked list
     extern KMemoryHeader* g_memory_head;
 
@@ -257,7 +257,7 @@ TEST_CASE(memory_header_realloc_list_update) {
     TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
 }
 
-TEST_CASE(memory_header_file_line_tracking) {
+TEST_CASE(memory, file_line_tracking) {
     // Test that file and line information is correctly stored
     extern KMemoryHeader* g_memory_head;
 
@@ -273,7 +273,7 @@ TEST_CASE(memory_header_file_line_tracking) {
     KORE_FREE(p);
 }
 
-TEST_CASE(memory_list_integrity_stress) {
+TEST_CASE(memory, integrity_stress) {
     // Stress test the linked list with multiple allocations and random frees
     extern KMemoryHeader* g_memory_head;
 
@@ -318,7 +318,7 @@ TEST_CASE(memory_list_integrity_stress) {
     TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
 }
 
-TEST_CASE(memory_leak_basic) {
+TEST_CASE(memory, basic_leak_marking) {
     // Test basic leak marking functionality
     extern KMemoryHeader* g_memory_head;
 
@@ -372,7 +372,7 @@ TEST_CASE(memory_leak_basic) {
     TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
 }
 
-TEST_CASE(memory_leak_realloc_preserves_flag) {
+TEST_CASE(memory, realloc_preserves_flag) {
     // Test that realloc preserves the leaked flag
     extern KMemoryHeader* g_memory_head;
 
@@ -411,7 +411,7 @@ TEST_CASE(memory_leak_realloc_preserves_flag) {
     TEST_ASSERT(p2_header->leaked);
 }
 
-TEST_CASE(memory_leak_realloc_then_mark) {
+TEST_CASE(memory, realloc_then_mark) {
     // Test marking as leaked after realloc
     extern KMemoryHeader* g_memory_head;
 
@@ -446,7 +446,7 @@ TEST_CASE(memory_leak_realloc_then_mark) {
     TEST_ASSERT(p2_header->leaked); // Should be marked as leaked
 }
 
-TEST_CASE(memory_leak_multiple_operations) {
+TEST_CASE(memory, multiple_operations) {
     // Test complex scenario with multiple allocations, leaks, and reallocs
     extern KMemoryHeader* g_memory_head;
 
@@ -494,7 +494,7 @@ TEST_CASE(memory_leak_multiple_operations) {
     KORE_FREE(p3);
 }
 
-TEST_CASE(memory_leak_null_pointer) {
+TEST_CASE(memory, null_pointer) {
     // Test that leaking a NULL pointer is safe
     usize initial_count = k_memory_get_allocation_count();
 
@@ -504,7 +504,7 @@ TEST_CASE(memory_leak_null_pointer) {
     TEST_ASSERT_EQ(k_memory_get_allocation_count(), initial_count);
 }
 
-TEST_CASE(memory_leak_double_mark) {
+TEST_CASE(memory, double_mark) {
     // Test marking the same allocation as leaked twice
     extern KMemoryHeader* g_memory_head;
 
@@ -537,7 +537,7 @@ TEST_CASE(memory_leak_double_mark) {
     TEST_ASSERT(!found); // Should not be in the list
 }
 
-TEST_CASE(memory_index_sequential) {
+TEST_CASE(memory, sequential) {
     // Test that allocation indices are assigned sequentially
     extern u64 g_memory_index;
     extern KMemoryHeader* g_memory_head;
@@ -565,7 +565,7 @@ TEST_CASE(memory_index_sequential) {
     KORE_FREE(p3);
 }
 
-TEST_CASE(memory_index_realloc_gets_new_index) {
+TEST_CASE(memory, realloc_gets_new_index) {
     // Test that realloc assigns a new index
     extern u64 g_memory_index;
 
@@ -589,7 +589,7 @@ TEST_CASE(memory_index_realloc_gets_new_index) {
     KORE_FREE(p);
 }
 
-TEST_CASE(memory_index_mixed_operations) {
+TEST_CASE(memory, mixed_operations) {
     // Test indices with mixed malloc/realloc/free operations
     extern u64 g_memory_index;
 
@@ -618,7 +618,7 @@ TEST_CASE(memory_index_mixed_operations) {
     KORE_FREE(p3);
 }
 
-TEST_CASE(memory_index_leak_preserves_index) {
+TEST_CASE(memory, leak_preserves_index) {
     // Test that marking as leaked preserves the original index
     extern u64 g_memory_index;
 
@@ -641,7 +641,7 @@ TEST_CASE(memory_index_leak_preserves_index) {
     TEST_ASSERT_EQ(g_memory_index, initial_index + 1);
 }
 
-TEST_CASE(memory_index_realloc_leaked_gets_new_index) {
+TEST_CASE(memory, realloc_leaked_gets_new_index) {
     // Test that realloc of leaked memory still gets a new index
     extern u64 g_memory_index;
 
@@ -669,7 +669,7 @@ TEST_CASE(memory_index_realloc_leaked_gets_new_index) {
     KORE_FREE(p);
 }
 
-TEST_CASE(memory_index_global_advances_correctly) {
+TEST_CASE(memory, global_advances_correctly) {
     // Test that global index advances correctly and never goes backwards
     extern u64 g_memory_index;
 
@@ -712,7 +712,7 @@ TEST_CASE(memory_index_global_advances_correctly) {
     }
 }
 
-TEST_CASE(memory_break_on_alloc_basic) {
+TEST_CASE(memory, break_on_alloc_basic) {
     // Test basic break-on-alloc functionality (without actually breaking)
     extern u64 g_memory_break_index;
     extern u64 g_memory_index;
@@ -750,7 +750,7 @@ TEST_CASE(memory_break_on_alloc_basic) {
     k_memory_break_on_alloc(original_break_index);
 }
 
-TEST_CASE(memory_break_on_alloc_realloc) {
+TEST_CASE(memory, break_on_alloc_realloc) {
     // Test break-on-alloc with realloc operations (without actually breaking)
     extern u64 g_memory_break_index;
     extern u64 g_memory_index;
@@ -779,7 +779,7 @@ TEST_CASE(memory_break_on_alloc_realloc) {
     k_memory_break_on_alloc(original_break_index);
 }
 
-TEST_CASE(memory_index_uniqueness) {
+TEST_CASE(memory, uniqueness) {
     // Test that all allocated blocks have unique indices
     extern u64 g_memory_index;
 
@@ -814,33 +814,33 @@ TEST_CASE(memory_index_uniqueness) {
 }
 
 TEST_SUITE_BEGIN()
-RUN_TEST(allocate_simple);
-RUN_TEST(allocate_multiple_sizes);
-RUN_TEST(memory_realloc_basic);
-RUN_TEST(memory_realloc_null_ptr);
-RUN_TEST(memory_free_null);
-RUN_TEST(memory_size_null);
-RUN_TEST(memory_allocation_tracking);
-RUN_TEST(memory_realloc_tracking);
-RUN_TEST(memory_leak_detection);
-RUN_TEST(memory_stress_allocation);
-RUN_TEST(memory_header_linked_list);
-RUN_TEST(memory_header_realloc_list_update);
-RUN_TEST(memory_header_file_line_tracking);
-RUN_TEST(memory_list_integrity_stress);
-RUN_TEST(memory_leak_basic);
-RUN_TEST(memory_leak_realloc_preserves_flag);
-RUN_TEST(memory_leak_realloc_then_mark);
-RUN_TEST(memory_leak_multiple_operations);
-RUN_TEST(memory_leak_null_pointer);
-RUN_TEST(memory_leak_double_mark);
-RUN_TEST(memory_index_sequential);
-RUN_TEST(memory_index_realloc_gets_new_index);
-RUN_TEST(memory_index_mixed_operations);
-RUN_TEST(memory_index_leak_preserves_index);
-RUN_TEST(memory_index_realloc_leaked_gets_new_index);
-RUN_TEST(memory_index_global_advances_correctly);
-RUN_TEST(memory_break_on_alloc_basic);
-RUN_TEST(memory_break_on_alloc_realloc);
-RUN_TEST(memory_index_uniqueness);
+RUN_TEST(memory, simple);
+RUN_TEST(memory, multiple_sizes);
+RUN_TEST(memory, basic);
+RUN_TEST(memory, null_ptr);
+RUN_TEST(memory, free_null);
+RUN_TEST(memory, size_null);
+RUN_TEST(memory, allocation_tracking);
+RUN_TEST(memory, realloc_tracking);
+RUN_TEST(memory, basic_detection);
+RUN_TEST(memory, many_allocations);
+RUN_TEST(memory, basic_structure);
+RUN_TEST(memory, realloc_list_update);
+RUN_TEST(memory, file_line_tracking);
+RUN_TEST(memory, integrity_stress);
+RUN_TEST(memory, basic_leak_marking);
+RUN_TEST(memory, realloc_preserves_flag);
+RUN_TEST(memory, realloc_then_mark);
+RUN_TEST(memory, multiple_operations);
+RUN_TEST(memory, null_pointer);
+RUN_TEST(memory, double_mark);
+RUN_TEST(memory, sequential);
+RUN_TEST(memory, realloc_gets_new_index);
+RUN_TEST(memory, mixed_operations);
+RUN_TEST(memory, leak_preserves_index);
+RUN_TEST(memory, realloc_leaked_gets_new_index);
+RUN_TEST(memory, global_advances_correctly);
+RUN_TEST(memory, break_on_alloc_basic);
+RUN_TEST(memory, break_on_alloc_realloc);
+RUN_TEST(memory, uniqueness);
 TEST_SUITE_END()

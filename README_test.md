@@ -1,13 +1,14 @@
 # Test.h - Header-Only C Test Framework
 
-A lightweight, header-only test framework for C with coloured output support using ANSI escape codes.
+A lightweight, header-only test framework for C with coloured output support using ANSI escape codes and built-in test categorisation.
 
 ## Features
 
 - Header-only implementation (single file: `test.h`)
+- **Built-in test categories** for better organisation 
 - Colourised output with ANSI escape codes
 - Multiple assertion types
-- Test case organization
+- Test case organisation with category-based output
 - Automatic test statistics and summary
 - Cross-platform compatible
 
@@ -21,18 +22,22 @@ A lightweight, header-only test framework for C with coloured output support usi
 #include "test.h"
 ```
 
-2. Write test cases using the `TEST_CASE` macro:
+2. Write test cases using the `TEST_CASE` macro with categories:
 ```c
-TEST_CASE(my_test_name) {
+TEST_CASE(arithmetic, addition) {
     TEST_ASSERT_EQ(2 + 2, 4);
-    TEST_ASSERT(1 < 2);
+}
+
+TEST_CASE(arithmetic, subtraction) {
+    TEST_ASSERT_EQ(5 - 3, 2);
 }
 ```
 
 3. Create a test suite:
 ```c
 TEST_SUITE_BEGIN()
-    RUN_TEST(my_test_name);
+    RUN_TEST(arithmetic, addition);
+    RUN_TEST(arithmetic, subtraction);
 TEST_SUITE_END()
 ```
 
@@ -43,6 +48,19 @@ TEST_SUITE_END()
 - `TEST_ASSERT_STR_EQ(a, b)` - Assert that two strings are equal
 - `TEST_ASSERT_NULL(ptr)` - Assert that a pointer is NULL
 - `TEST_ASSERT_NOT_NULL(ptr)` - Assert that a pointer is not NULL
+
+### Test Categories
+
+The framework organises all tests into categories for better management of large test suites:
+
+- `TEST_CASE(category, name)` - Define a test case that belongs to a category
+- `RUN_TEST(category, name)` - Run a categorised test case
+
+#### Category Benefits
+
+- **Organisation**: Group related tests together (e.g., `basic_allocation`, `memory_leak`, `edge_cases`)
+- **Cleaner Output**: In quiet mode, only categories are shown instead of individual test names
+- **Better Management**: Easier to understand test structure when dealing with many tests
 
 ### Output Verbosity
 
@@ -86,24 +104,27 @@ The environment variable takes precedence over the compile-time define if both a
 #### Quiet Mode Output (Default)
 ```
 === Test Suite Started ===
-✓ test_addition_success
-✓ test_multiplication_success
+
+=== Test Categories Summary ===
+✓ basic_allocation: 2/2 passed
+✓ memory_management: 5/5 passed
+✗ edge_cases: 2/3 passed
   ✗ ASSERTION FAILED at test_file.c:30
     Expected: buggy_divide(10, 2) == 5
-✗ test_division_failure FAILED (1 assertions failed)
+✗ edge_cases::division_failure FAILED (1 assertions failed)
 ```
 
 #### Verbose Mode Output
 ```
 === Test Suite Started ===
-Running test: test_addition_success
-  ✓ add(2, 3) == 5
-  ✓ add(-1, 1) == 0
-✓ test_addition_success
-Running test: test_division_failure
+Running test: basic_allocation::simple
+  ✓ malloc(100) is not NULL
+  ✓ size == 100
+✓ basic_allocation::simple
+Running test: edge_cases::division_failure
   ✗ ASSERTION FAILED at test_file.c:30
     Expected: buggy_divide(10, 2) == 5
-✗ test_division_failure FAILED (1 assertions failed)
+✗ edge_cases::division_failure FAILED (1 assertions failed)
 ```
 
 ### Complete Example
@@ -117,15 +138,31 @@ int add(int a, int b) {
     return a + b;
 }
 
-// Test case
-TEST_CASE(test_addition) {
+int multiply(int a, int b) {
+    return a * b;
+}
+
+// Categorised test cases
+TEST_CASE(arithmetic, addition) {
     TEST_ASSERT_EQ(add(2, 3), 5);
     TEST_ASSERT_EQ(add(-1, 1), 0);
 }
 
+TEST_CASE(arithmetic, multiplication) {
+    TEST_ASSERT_EQ(multiply(3, 4), 12);
+    TEST_ASSERT_EQ(multiply(-2, 5), -10);
+}
+
+TEST_CASE(edge_cases, zero_values) {
+    TEST_ASSERT_EQ(add(0, 0), 0);
+    TEST_ASSERT_EQ(multiply(0, 100), 0);
+}
+
 // Test suite
 TEST_SUITE_BEGIN()
-    RUN_TEST(test_addition);
+    RUN_TEST(arithmetic, addition);
+    RUN_TEST(arithmetic, multiplication);
+    RUN_TEST(edge_cases, zero_values);
 TEST_SUITE_END()
 ```
 
