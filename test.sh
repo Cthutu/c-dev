@@ -9,7 +9,7 @@ if [ $? -eq 0 ]; then
     echo ""
     echo "Running tests..."
     echo ""
-    ./_bin/test
+    ./_bin/test $*
 else
     echo "Compilation failed!"
     exit 1

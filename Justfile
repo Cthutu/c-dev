@@ -10,8 +10,9 @@ run *args: build
 clean:
     @rm -rf _*
 
-test:
-    @./test.sh
+test *args:
+    @./test.sh {{args}}
+
 
 full-test: clean build test run
 

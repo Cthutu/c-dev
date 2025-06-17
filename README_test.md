@@ -6,6 +6,8 @@ A lightweight, header-only test framework for C with coloured output support usi
 
 - Header-only implementation (single file: `test.h`)
 - **Built-in test categories** for better organisation 
+- **Automatic test discovery** with `RUN_ALL_TESTS()` macro
+- **Command line filtering** by category or test name
 - Colourised output with ANSI escape codes
 - Multiple assertion types
 - Test case organisation with category-based output
@@ -33,12 +35,68 @@ TEST_CASE(arithmetic, subtraction) {
 }
 ```
 
-3. Create a test suite:
+3. Create a test suite with automatic test discovery:
 ```c
+// Option 1: Automatic test discovery (NEW!)
+TEST_SUITE_BEGIN()
+    RUN_ALL_TESTS();
+TEST_SUITE_END()
+
+// Option 2: Manual test specification (traditional)
 TEST_SUITE_BEGIN()
     RUN_TEST(arithmetic, addition);
     RUN_TEST(arithmetic, subtraction);
 TEST_SUITE_END()
+```
+
+### Automatic Test Discovery (NEW!)
+
+The framework now supports automatic test discovery using the `RUN_ALL_TESTS()` macro. To use this feature:
+
+1. Define all your tests using the `TEST_CASE` macro as usual
+2. Create an X-macro list of all tests in your test file:
+
+```c
+// Define all tests using X-macro pattern
+#define ALL_TESTS \
+    X(arithmetic, addition) \
+    X(arithmetic, subtraction) \
+    X(memory, allocation) \
+    X(memory, deallocation)
+
+// Generate test registration function
+void test_register_all_tests(void) {
+#define X(category, name) test_register(test_##category##_##name, #category, #name);
+    ALL_TESTS
+#undef X
+}
+
+TEST_SUITE_BEGIN()
+    RUN_ALL_TESTS();
+TEST_SUITE_END()
+```
+
+This approach automatically discovers and runs all tests without requiring manual `RUN_TEST` calls for each test.
+
+### Command Line Options (NEW!)
+
+The test framework now supports command line filtering:
+
+```bash
+# Run all tests
+./test_program
+
+# Run only tests in a specific category
+./test_program -c memory
+./test_program --category memory
+
+# Run only a specific test by name
+./test_program -t simple
+./test_program --test simple
+
+# Show help
+./test_program -h
+./test_program --help
 ```
 
 ### Available Assertions

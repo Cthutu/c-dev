@@ -813,34 +813,46 @@ TEST_CASE(memory, uniqueness) {
     }
 }
 
+// Define all tests using X-macro pattern
+#define ALL_TESTS                                                              \
+    X(memory, simple)                                                          \
+    X(memory, multiple_sizes)                                                  \
+    X(memory, basic)                                                           \
+    X(memory, null_ptr)                                                        \
+    X(memory, free_null)                                                       \
+    X(memory, size_null)                                                       \
+    X(memory, allocation_tracking)                                             \
+    X(memory, realloc_tracking)                                                \
+    X(memory, basic_detection)                                                 \
+    X(memory, many_allocations)                                                \
+    X(memory, basic_structure)                                                 \
+    X(memory, realloc_list_update)                                             \
+    X(memory, file_line_tracking)                                              \
+    X(memory, integrity_stress)                                                \
+    X(memory, basic_leak_marking)                                              \
+    X(memory, realloc_preserves_flag)                                          \
+    X(memory, realloc_then_mark)                                               \
+    X(memory, multiple_operations)                                             \
+    X(memory, null_pointer)                                                    \
+    X(memory, double_mark)                                                     \
+    X(memory, sequential)                                                      \
+    X(memory, realloc_gets_new_index)                                          \
+    X(memory, mixed_operations)                                                \
+    X(memory, leak_preserves_index)                                            \
+    X(memory, realloc_leaked_gets_new_index)                                   \
+    X(memory, global_advances_correctly)                                       \
+    X(memory, break_on_alloc_basic)                                            \
+    X(memory, break_on_alloc_realloc)                                          \
+    X(memory, uniqueness)
+
+// Generate test registration function
+void test_register_all_tests(void) {
+#define X(category, name)                                                      \
+    test_register(test_##category##_##name, #category, #name);
+    ALL_TESTS
+#undef X
+}
+
 TEST_SUITE_BEGIN()
-RUN_TEST(memory, simple);
-RUN_TEST(memory, multiple_sizes);
-RUN_TEST(memory, basic);
-RUN_TEST(memory, null_ptr);
-RUN_TEST(memory, free_null);
-RUN_TEST(memory, size_null);
-RUN_TEST(memory, allocation_tracking);
-RUN_TEST(memory, realloc_tracking);
-RUN_TEST(memory, basic_detection);
-RUN_TEST(memory, many_allocations);
-RUN_TEST(memory, basic_structure);
-RUN_TEST(memory, realloc_list_update);
-RUN_TEST(memory, file_line_tracking);
-RUN_TEST(memory, integrity_stress);
-RUN_TEST(memory, basic_leak_marking);
-RUN_TEST(memory, realloc_preserves_flag);
-RUN_TEST(memory, realloc_then_mark);
-RUN_TEST(memory, multiple_operations);
-RUN_TEST(memory, null_pointer);
-RUN_TEST(memory, double_mark);
-RUN_TEST(memory, sequential);
-RUN_TEST(memory, realloc_gets_new_index);
-RUN_TEST(memory, mixed_operations);
-RUN_TEST(memory, leak_preserves_index);
-RUN_TEST(memory, realloc_leaked_gets_new_index);
-RUN_TEST(memory, global_advances_correctly);
-RUN_TEST(memory, break_on_alloc_basic);
-RUN_TEST(memory, break_on_alloc_realloc);
-RUN_TEST(memory, uniqueness);
+RUN_ALL_TESTS();
 TEST_SUITE_END()
