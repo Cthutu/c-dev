@@ -821,6 +821,28 @@ TEST_CASE(array, basic_array) {
     TEST_ASSERT_EQ(array_capacity(arr), 0);
 }
 
+TEST_CASE(array, push_pop) {
+    Array(int) arr = NULL;
+
+    // Push elements
+    for (int i = 0; i < 10; i++) {
+        array_push(arr, i);
+    }
+
+    TEST_ASSERT_EQ(array_size(arr), 10 * sizeof(int));  // size in bytes
+    TEST_ASSERT_EQ(array_count(arr), 10);               // count of elements
+    TEST_ASSERT_GT(array_capacity(arr), 10 * sizeof(int));
+
+    // Pop elements
+    for (int i = 9; i >= 0; i--) {
+        int value = array_pop(arr);
+        TEST_ASSERT_EQ(value, i);
+    }
+
+    TEST_ASSERT_EQ(array_size(arr), 0);   // size in bytes (0 after popping all)
+    TEST_ASSERT_EQ(array_count(arr), 0);  // count of elements (0 after popping all)
+}
+
 TEST_SUITE_BEGIN()
 RUN_ALL_TESTS();
 TEST_SUITE_END()

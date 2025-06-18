@@ -187,6 +187,53 @@ typedef struct KArrayHeader_t {
 #define array_capacity(a) __array_safe((a), __array_bytes_capacity(a))
 #define array_count(a) __array_safe((a), __array_count(a))
 
+// Forward declaration for internal array function
+static void*
+array_maybe_grow(void* array, usize element_size, usize required_capacity);
+
+// Array push function - grows array if needed
+#define array_push(a, value)                                                   \
+    do {                                                                       \
+        usize current_count = array_count(a);                                  \
+        (a) = array_maybe_grow((a), sizeof(*(a)), current_count + 1);          \
+        (a)[current_count]        = (value);                                   \
+        /* Update the data size */                                             \
+        KArrayHeader* header      = __array_info(a);                           \
+        KMemoryHeader* mem_header = (KMemoryHeader*)header - 1;                \
+        mem_header->size          = (current_count + 1) * sizeof(*(a));        \
+    } while (0)
+
+// Array pop function - removes and returns last element
+#define array_pop(a)                                                           \
+    ({                                                                         \
+        usize current_count = array_count(a);                                  \
+        typeof(*(a)) result;                                                   \
+        if (current_count == 0) {                                              \
+            /* Handle empty array - return zero/null value */                  \
+            typeof(*(a)) zero_value = {0};                                     \
+            result                  = zero_value;                              \
+        } else {                                                               \
+            result                    = (a)[current_count - 1];                \
+            /* Update the actual allocated size to reflect the new count */    \
+            KArrayHeader* header      = __array_info(a);                       \
+            usize element_size        = sizeof(*(a));                          \
+            usize new_size_bytes      = (current_count - 1) * element_size;    \
+            KMemoryHeader* mem_header = (KMemoryHeader*)header - 1;            \
+            mem_header->size          = new_size_bytes; /* Only data size */   \
+        }                                                                      \
+        result;                                                                \
+    })
+
+// Array free function - deallocates array memory
+#define array_free(a)                                                          \
+    do {                                                                       \
+        if ((a)) {                                                             \
+            KArrayHeader* header = __array_info(a);                            \
+            KORE_FREE(header);                                                 \
+            (a) = NULL;                                                        \
+        }                                                                      \
+    } while (0)
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 // I M P L E M E N T A T I O N
@@ -436,6 +483,51 @@ usize memory_get_total_allocated(void) {
 }
 
 #    endif // KORE_DEBUG
+
+//-----------------------------------------------------------------------[Array]
+
+// Internal array growth function
+static void*
+array_maybe_grow(void* array, usize element_size, usize required_capacity) {
+    if (!array) {
+        // Initial allocation
+        usize initial_capacity = 4;
+        if (required_capacity > initial_capacity) {
+            initial_capacity = required_capacity;
+        }
+
+        KArrayHeader* header = (KArrayHeader*)KORE_MALLOC(
+            sizeof(KArrayHeader) + initial_capacity * element_size);
+        header->capacity          = initial_capacity * element_size;
+
+        // Set initial size to 0 (no elements yet)
+        KMemoryHeader* mem_header = (KMemoryHeader*)header - 1;
+        mem_header->size          = 0; /* Only data size */
+
+        return (void*)(header + 1);
+    }
+
+    usize current_capacity_bytes    = ((KArrayHeader*)array - 1)->capacity;
+    usize current_capacity_elements = current_capacity_bytes / element_size;
+
+    if (required_capacity <= current_capacity_elements) {
+        return array; // No growth needed
+    }
+
+    // Need to grow the array
+    usize new_capacity_elements = current_capacity_elements * 2;
+    if (new_capacity_elements < required_capacity) {
+        new_capacity_elements = required_capacity;
+    }
+
+    usize new_capacity_bytes = new_capacity_elements * element_size;
+    KArrayHeader* old_header = (KArrayHeader*)array - 1;
+    KArrayHeader* new_header = (KArrayHeader*)KORE_REALLOC(
+        old_header, sizeof(KArrayHeader) + new_capacity_bytes);
+    new_header->capacity = new_capacity_bytes;
+
+    return (void*)(new_header + 1);
+}
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
