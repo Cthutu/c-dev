@@ -82,7 +82,7 @@ typedef struct {
                    __FILE__,                                                   \
                    __LINE__);                                                  \
             printf("    Expected: %s == %s\n", #a, #b);                        \
-            printf("    Values differ\n");                                     \
+            printf("    Values: %lld != %lld\n", _cmp_a, _cmp_b);              \
             test_current_failures++;                                           \
             test_total_failures++;                                             \
         } else if (test_verbose_output) {                                      \

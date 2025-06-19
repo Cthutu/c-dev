@@ -172,14 +172,14 @@ void memory_break_on_alloc(u64 index);
 #define Array(T) T*
 
 typedef struct KArrayHeader_t {
-    usize capacity;
+    usize count;
 } KArrayHeader;
 
 // Level 0 accessor macros - assumes that (a) is non-NULL and is a valid array
 #define __array_info(a) ((KArrayHeader*)(a) - 1)
-#define __array_bytes_size(a) (memory_size(__array_info(a)))
-#define __array_bytes_capacity(a) (__array_info(a)->capacity)
-#define __array_count(a) (__array_bytes_size(a) / sizeof(*(a)))
+#define __array_bytes_capacity(a) (memory_size(__array_info(a)))
+#define __array_count(a) (__array_info(a)->count)
+#define __array_bytes_size(a) (__array_count(a) * sizeof(*(a)))
 #define __array_safe(a, op) ((a) ? (op) : 0)
 
 // Level 1 accessor macros - handles a NULL array
@@ -191,16 +191,12 @@ typedef struct KArrayHeader_t {
 static void*
 array_maybe_grow(void* array, usize element_size, usize required_capacity);
 
-// Array push function - grows array if needed
 #define array_push(a, value)                                                   \
     do {                                                                       \
         usize current_count = array_count(a);                                  \
         (a) = array_maybe_grow((a), sizeof(*(a)), current_count + 1);          \
-        (a)[current_count]        = (value);                                   \
-        /* Update the data size */                                             \
-        KArrayHeader* header      = __array_info(a);                           \
-        KMemoryHeader* mem_header = (KMemoryHeader*)header - 1;                \
-        mem_header->size          = (current_count + 1) * sizeof(*(a));        \
+        (a)[current_count] = (value);                                          \
+        __array_info(a)->count += 1;                                           \
     } while (0)
 
 // Array pop function - removes and returns last element
@@ -211,15 +207,11 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity);
         if (current_count == 0) {                                              \
             /* Handle empty array - return zero/null value */                  \
             typeof(*(a)) zero_value = {0};                                     \
-            result                  = zero_value;                              \
+            result = zero_value;                                               \
         } else {                                                               \
-            result                    = (a)[current_count - 1];                \
-            /* Update the actual allocated size to reflect the new count */    \
-            KArrayHeader* header      = __array_info(a);                       \
-            usize element_size        = sizeof(*(a));                          \
-            usize new_size_bytes      = (current_count - 1) * element_size;    \
-            KMemoryHeader* mem_header = (KMemoryHeader*)header - 1;            \
-            mem_header->size          = new_size_bytes; /* Only data size */   \
+            result = (a)[current_count - 1];                                   \
+            /* Decrement the count */                                          \
+            __array_info(a)->count -= 1;                                       \
         }                                                                      \
         result;                                                                \
     })
@@ -498,16 +490,14 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity) {
 
         KArrayHeader* header = (KArrayHeader*)KORE_MALLOC(
             sizeof(KArrayHeader) + initial_capacity * element_size);
-        header->capacity          = initial_capacity * element_size;
-
-        // Set initial size to 0 (no elements yet)
-        KMemoryHeader* mem_header = (KMemoryHeader*)header - 1;
-        mem_header->size          = 0; /* Only data size */
+        header->count = 0; // No elements yet
 
         return (void*)(header + 1);
     }
 
-    usize current_capacity_bytes    = ((KArrayHeader*)array - 1)->capacity;
+    // Calculate current capacity from memory size
+    KArrayHeader* header         = (KArrayHeader*)array - 1;
+    usize current_capacity_bytes = memory_size(header) - sizeof(KArrayHeader);
     usize current_capacity_elements = current_capacity_bytes / element_size;
 
     if (required_capacity <= current_capacity_elements) {
@@ -521,10 +511,11 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity) {
     }
 
     usize new_capacity_bytes = new_capacity_elements * element_size;
-    KArrayHeader* old_header = (KArrayHeader*)array - 1;
+    KArrayHeader* old_header = header;
     KArrayHeader* new_header = (KArrayHeader*)KORE_REALLOC(
         old_header, sizeof(KArrayHeader) + new_capacity_bytes);
-    new_header->capacity = new_capacity_bytes;
+
+    // count is preserved by realloc
 
     return (void*)(new_header + 1);
 }
