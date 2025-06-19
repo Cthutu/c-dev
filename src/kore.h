@@ -177,14 +177,16 @@ typedef struct KArrayHeader_t {
 
 // Level 0 accessor macros - assumes that (a) is non-NULL and is a valid array
 #define __array_info(a) ((KArrayHeader*)(a) - 1)
-#define __array_bytes_capacity(a) (memory_size(__array_info(a)))
+#define __array_bytes_capacity(a)                                              \
+    (memory_size(__array_info(a)) - sizeof(KArrayHeader))
 #define __array_count(a) (__array_info(a)->count)
 #define __array_bytes_size(a) (__array_count(a) * sizeof(*(a)))
 #define __array_safe(a, op) ((a) ? (op) : 0)
 
 // Level 1 accessor macros - handles a NULL array
 #define array_size(a) __array_safe((a), __array_bytes_size(a))
-#define array_capacity(a) __array_safe((a), __array_bytes_capacity(a))
+#define array_capacity(a)                                                      \
+    __array_safe((a), __array_bytes_capacity(a) / sizeof(*(a)))
 #define array_count(a) __array_safe((a), __array_count(a))
 
 // Forward declaration for internal array function
@@ -192,29 +194,10 @@ static void*
 array_maybe_grow(void* array, usize element_size, usize required_capacity);
 
 #define array_push(a, value)                                                   \
-    do {                                                                       \
-        usize current_count = array_count(a);                                  \
-        (a) = array_maybe_grow((a), sizeof(*(a)), current_count + 1);          \
-        (a)[current_count] = (value);                                          \
-        __array_info(a)->count += 1;                                           \
-    } while (0)
+    ((a) = array_maybe_grow((a), sizeof(*(a)), array_count(a) + 1),            \
+     (a)[__array_count(a)++] = (value))
 
-// Array pop function - removes and returns last element
-#define array_pop(a)                                                           \
-    ({                                                                         \
-        usize current_count = array_count(a);                                  \
-        typeof(*(a)) result;                                                   \
-        if (current_count == 0) {                                              \
-            /* Handle empty array - return zero/null value */                  \
-            typeof(*(a)) zero_value = {0};                                     \
-            result = zero_value;                                               \
-        } else {                                                               \
-            result = (a)[current_count - 1];                                   \
-            /* Decrement the count */                                          \
-            __array_info(a)->count -= 1;                                       \
-        }                                                                      \
-        result;                                                                \
-    })
+#define array_pop(a) ((a)[__array_count(a)-- - 1])
 
 // Array free function - deallocates array memory
 #define array_free(a)                                                          \
