@@ -19,5 +19,7 @@ int main() {
 
     printf("Size of array: %zu\n", array_count(arr));
 
+    array_free(arr);
+
     memory_print_leaks();
 }
