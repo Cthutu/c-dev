@@ -6,4 +6,5 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
-./_bin/hello.exe
+./_bin/hello
+

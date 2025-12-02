@@ -3,14 +3,18 @@
     "configurations": [
         {
             "name": "Debug test",
-            "type": "cppvsdbg",
+            "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/_bin/hello.exe",
+            "program": "${workspaceFolder}/_bin/hello",
             "args": [],
             "cwd": "${workspaceFolder}",
             "environment": [],
             "preLaunchTask": "Build",
-            "console": "integratedTerminal"
+            "console": "integratedTerminal",
+            "windows": {
+                "type": "cppvsdbg",
+                "program": "${workspaceFolder}/_bin/hello.exe"
+            }
         }
     ]
 }

@@ -11,8 +11,14 @@ CYAN='\033[0;36m'
 C_COMPILER="clang"
 DEFINES=""
 CFLAGS="-Wall -Wextra -Werror -g -std=c23 $DEFINES"
-EXE_NAME="hello.exe"
 SRC_DIR="src"
+
+case "$(uname -s)" in
+    Linux*)     EXE_NAME="hello";;
+    Darwin*)    EXE_NAME="hello";;
+    CYGWIN*|MINGW*|MSYS*) EXE_NAME="hello.exe";;
+    *)          echo -e "${RED}Unsupported OS. Exiting.${RESET}"; exit 1;;
+esac
 
 # Check if the C compiler is installed
 if ! command -v $C_COMPILER &> /dev/null; then
