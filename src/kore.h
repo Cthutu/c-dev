@@ -411,7 +411,6 @@ void memory_print_leaks(void) {
     usize total_leaked     = 0;
 
     if (!current) {
-        printf("No memory leaks detected.\n");
         return;
     }
 
