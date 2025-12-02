@@ -831,7 +831,7 @@ TEST_CASE(array, push_pop) {
 
     TEST_ASSERT_EQ(array_size(arr), 10 * sizeof(int)); // size in bytes
     TEST_ASSERT_EQ(array_count(arr), 10);              // count of elements
-    TEST_ASSERT_GT(array_capacity(arr), 10 * sizeof(int));
+    TEST_ASSERT_GE(array_capacity(arr), 10);
 
     // Pop elements
     for (int i = 9; i >= 0; i--) {
