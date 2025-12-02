@@ -171,10 +171,82 @@ typedef struct {
         }                                                                      \
     } while (0)
 
+#define TEST_ASSERT_LT(a, b)                                                   \
+    do {                                                                       \
+        test_total_assertions++;                                               \
+        auto _test_val_a = (a);                                                \
+        auto _test_val_b = (b);                                                \
+        /* Convert both to the wider type to avoid sign comparison */          \
+        long long _cmp_a = (long long)_test_val_a;                             \
+        long long _cmp_b = (long long)_test_val_b;                             \
+        if (_cmp_a >= _cmp_b) {                                                \
+            printf("  " TEST_COLOUR_RED "✗ ASSERTION FAILED" TEST_COLOUR_RESET \
+                   " at %s:%d\n",                                              \
+                   __FILE__,                                                   \
+                   __LINE__);                                                  \
+            printf("    Expected: %s < %s\n", #a, #b);                         \
+            printf("    Values: %lld >= %lld\n", _cmp_a, _cmp_b);              \
+            test_current_failures++;                                           \
+            test_total_failures++;                                             \
+        } else if (test_verbose_output) {                                      \
+            printf("  " TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET " %s < %s\n",  \
+                   #a,                                                         \
+                   #b);                                                        \
+        }                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_GE(a, b)                                                   \
+    do {                                                                       \
+        test_total_assertions++;                                               \
+        auto _test_val_a = (a);                                                \
+        auto _test_val_b = (b);                                                \
+        /* Convert both to the wider type to avoid sign comparison */          \
+        long long _cmp_a = (long long)_test_val_a;                             \
+        long long _cmp_b = (long long)_test_val_b;                             \
+        if (_cmp_a < _cmp_b) {                                                 \
+            printf("  " TEST_COLOUR_RED "✗ ASSERTION FAILED" TEST_COLOUR_RESET \
+                   " at %s:%d\n",                                              \
+                   __FILE__,                                                   \
+                   __LINE__);                                                  \
+            printf("    Expected: %s >= %s\n", #a, #b);                        \
+            printf("    Values: %lld < %lld\n", _cmp_a, _cmp_b);               \
+            test_current_failures++;                                           \
+            test_total_failures++;                                             \
+        } else if (test_verbose_output) {                                      \
+            printf("  " TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET " %s >= %s\n", \
+                   #a,                                                         \
+                   #b);                                                        \
+        }                                                                      \
+    } while (0)
+
+#define TEST_ASSERT_LE(a, b)                                                   \
+    do {                                                                       \
+        test_total_assertions++;                                               \
+        auto _test_val_a = (a);                                                \
+        auto _test_val_b = (b);                                                \
+        /* Convert both to the wider type to avoid sign comparison */          \
+        long long _cmp_a = (long long)_test_val_a;                             \
+        long long _cmp_b = (long long)_test_val_b;                             \
+        if (_cmp_a > _cmp_b) {                                                 \
+            printf("  " TEST_COLOUR_RED "✗ ASSERTION FAILED" TEST_COLOUR_RESET \
+                   " at %s:%d\n",                                              \
+                   __FILE__,                                                   \
+                   __LINE__);                                                  \
+            printf("    Expected: %s <= %s\n", #a, #b);                        \
+            printf("    Values: %lld > %lld\n", _cmp_a, _cmp_b);               \
+            test_current_failures++;                                           \
+            test_total_failures++;                                             \
+        } else if (test_verbose_output) {                                      \
+            printf("  " TEST_COLOUR_GREEN "✓" TEST_COLOUR_RESET " %s <= %s\n", \
+                   #a,                                                         \
+                   #b);                                                        \
+        }                                                                      \
+    } while (0)
+
 #define TEST_CASE(category, name)                                              \
     void test_##category##_##name(void);                                       \
-    __attribute__((                                                            \
-        constructor)) static void register_test_##category##_##name(void) {    \
+    __attribute__((constructor)) static void                                   \
+    register_test_##category##_##name(void) {                                  \
         test_register(test_##category##_##name, #category, #name);             \
     }                                                                          \
     void test_##category##_##name(void)
