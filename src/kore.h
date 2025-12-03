@@ -633,8 +633,8 @@ static void* array_maybe_grow(void* array,
             initial_capacity = required_capacity;
         }
 
-        KArrayHeader* header = (KArrayHeader*)KORE_ALLOC(
-            sizeof(KArrayHeader) + initial_capacity * element_size);
+        KArrayHeader* header = (KArrayHeader*)mem_alloc(
+            sizeof(KArrayHeader) + initial_capacity * element_size, file, line);
         header->count = 0; // No elements yet
 
         return (void*)(header + 1);
@@ -657,8 +657,8 @@ static void* array_maybe_grow(void* array,
 
     usize new_capacity_bytes = new_capacity_elements * element_size;
     KArrayHeader* old_header = header;
-    KArrayHeader* new_header = (KArrayHeader*)KORE_REALLOC(
-        old_header, sizeof(KArrayHeader) + new_capacity_bytes);
+    KArrayHeader* new_header = (KArrayHeader*)mem_realloc(
+        old_header, sizeof(KArrayHeader) + new_capacity_bytes, file, line);
 
     // count is preserved by realloc
 
