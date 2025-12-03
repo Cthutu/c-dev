@@ -174,12 +174,12 @@ typedef double f64; // 64-bit floating point
 
 typedef const char* cstr; // Constant string type
 
-//---------------------------------------------------------------------[Library]
+//------------------------------------------------------------------------------[Library]
 
 void kore_init(void);
 void kore_done(void);
 
-//----------------------------------------------------------------------[Memory]
+//------------------------------------------------------------------------------[Memory]
 
 void* mem_alloc(usize size, const char* file, int line);
 void* mem_realloc(void* ptr, usize size, const char* file, int line);
@@ -201,7 +201,7 @@ usize mem_get_total_allocated(void);
 
 void mem_break_on_alloc(u64 index);
 
-//-----------------------------------------------------------------------[Array]
+//------------------------------------------------------------------------------[Array]
 
 #define Array(T) T*
 
@@ -276,7 +276,7 @@ void mutex_done(Mutex* mutex);
 void mutex_lock(Mutex* mutex);
 void mutex_unlock(Mutex* mutex);
 
-//----------------------------------------------------------------------[Output]
+//------------------------------------------------------------------------------[Output]
 
 void prv(const char* format, va_list args);
 void pr(const char* format, ...);
@@ -697,7 +697,7 @@ void mutex_unlock(Mutex* mutex) { pthread_mutex_unlock(mutex); }
 
 #    endif // KORE_OS_WINDOWS
 
-//----------------------------------------------------------------------[Output]
+//------------------------------------------------------------------------------[Output]
 
 internal cstr _format_output(cstr format, va_list args, usize* out_size) {
     thread_local local_persist Array(char) print_buffer = NULL;
@@ -794,7 +794,7 @@ void eprn(cstr format, ...) {
     va_end(args);
 }
 
-//---------------------------------------------------------------------[Library]
+//------------------------------------------------------------------------------[Library]
 
 void kore_init(void) { mutex_init(&g_kore_output_mutex); }
 
