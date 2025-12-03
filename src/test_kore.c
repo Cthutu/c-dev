@@ -944,6 +944,36 @@ TEST_CASE(arena_session, alloc_and_undo) {
     arena_done(&arena);
 }
 
+TEST_CASE(time, conversions) {
+    TimeDuration one_second = time_from_secs(1);
+    TEST_ASSERT_EQ(time_duration_to_secs(one_second), 1);
+    TEST_ASSERT_EQ(time_duration_to_ms(one_second), 1000);
+    TEST_ASSERT_EQ(time_duration_to_us(one_second), 1000000);
+    TEST_ASSERT_EQ(time_duration_to_ns(one_second), 1000000000ull);
+
+    TimeDuration one_millisecond = time_from_ms(1);
+    TEST_ASSERT_EQ(one_millisecond, time_from_us(1000));
+    TEST_ASSERT_EQ(one_millisecond, time_from_ns(1000000));
+}
+
+TEST_CASE(time, arithmetic) {
+    TimePoint start       = 5000;
+    TimeDuration duration = time_from_ms(250);
+    TimePoint end         = time_add_duration(start, duration);
+
+    TEST_ASSERT_EQ(end, start + duration);
+    TEST_ASSERT_EQ(time_elapsed(start, end), duration);
+}
+
+TEST_CASE(time, now_advances) {
+    TimePoint start = time_now();
+    time_sleep_ms(2);
+    TimePoint end = time_now();
+
+    TEST_ASSERT_GT(end, start);
+    TEST_ASSERT_GT(time_duration_to_ms(time_elapsed(start, end)), 0);
+}
+
 TEST_SUITE_BEGIN()
 RUN_ALL_TESTS();
 TEST_SUITE_END()
