@@ -208,6 +208,8 @@ void* mem_free(void* ptr, const char* file, int line);
 usize mem_size(const void* ptr);
 void mem_leak(void* ptr);
 
+void mem_check(void* ptr);
+
 // Memory debugging utilities
 #if KORE_DEBUG
 void mem_print_leaks(void);
@@ -647,7 +649,20 @@ usize mem_get_total_allocated(void) {
 
 #    endif // KORE_DEBUG
 
-//-----------------------------------------------------------------------[Array]
+void mem_check(void* ptr) {
+    if (!ptr) {
+
+        eprn(ANSI_BOLD_RED
+             "┌──────────────────────────────────────┐" ANSI_RESET);
+        eprn(ANSI_BOLD_RED
+             "│        Out of memory error           │" ANSI_RESET);
+        eprn(ANSI_BOLD_RED
+             "└──────────────────────────────────────┘" ANSI_RESET);
+        exit(1);
+    }
+}
+
+//------------------------------------------------------------------------------[Array]
 
 // Internal array growth function
 static void* array_maybe_grow(void* array,
