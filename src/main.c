@@ -23,5 +23,4 @@ int main() {
     array_free(arr);
 
     kore_done();
-    mem_print_leaks();
 }
