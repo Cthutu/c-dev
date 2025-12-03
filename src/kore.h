@@ -232,13 +232,14 @@ static void* array_maybe_grow(void* array,
 
 #define array_push(a, ...)                                                     \
     do {                                                                       \
-        typeof(*(a)) __array_tmp[] = { __VA_ARGS__ };                          \
+        typeof(*(a)) __array_tmp[] = {__VA_ARGS__};                            \
         usize __array_n = sizeof(__array_tmp) / sizeof(__array_tmp[0]);        \
-        (a) = array_maybe_grow(                                                \
-            (a), sizeof(*(a)), array_count(a) + __array_n, __FILE__, __LINE__); \
-        memcpy((a) + __array_count(a),                                         \
-               __array_tmp,                                                    \
-               __array_n * sizeof(*(a)));                                      \
+        (a)             = array_maybe_grow((a),                                \
+                               sizeof(*(a)),                       \
+                               array_count(a) + __array_n,         \
+                               __FILE__,                           \
+                               __LINE__);                          \
+        memcpy((a) + __array_count(a), __array_tmp, __array_n * sizeof(*(a))); \
         __array_count(a) += __array_n;                                         \
     } while (0)
 
