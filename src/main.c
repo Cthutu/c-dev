@@ -4,22 +4,24 @@
 
 int main() {
     Array(int) arr = nullptr;
+    kore_init();
 
-    printf("Capacity of array: %zu\n", array_capacity(arr));
+    prn("Capacity of array: %zu", array_capacity(arr));
     array_push(arr, 10);
-    printf("Capacity of array: %zu\n", array_capacity(arr));
+    prn("Capacity of array: %zu", array_capacity(arr));
     array_push(arr, 20);
-    printf("Capacity of array: %zu\n", array_capacity(arr));
+    prn("Capacity of array: %zu", array_capacity(arr));
     array_push(arr, 42);
-    printf("Capacity of array: %zu\n", array_capacity(arr));
+    prn("Capacity of array: %zu", array_capacity(arr));
 
-    printf("%d\n", array_pop(arr)); // Should print 42
-    printf("%d\n", array_pop(arr)); // Should print 20
-    printf("%d\n", array_pop(arr)); // Should print 10
+    prn("%d", array_pop(arr)); // Should print 42
+    prn("%d", array_pop(arr)); // Should print 20
+    prn("%d", array_pop(arr)); // Should print 10
 
-    printf("Size of array: %zu\n", array_count(arr));
+    prn("Size of array: %zu", array_count(arr));
 
     array_free(arr);
 
-    memory_print_leaks();
+    kore_done();
+    mem_print_leaks();
 }

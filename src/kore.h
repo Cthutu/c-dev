@@ -5,6 +5,7 @@
 // Copyright (c) 2023 Matt Davies, all rights reserved.
 //------------------------------------------------------------------------------
 
+#include <stdarg.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -13,9 +14,13 @@
 // INDEX
 //
 // [Config]             Configuration macros and settings
+// [Macros]             Basic macros
 // [Types]              Basic types and definitions
+// [Library]            Library initialisation and shutdown
 // [Memory]             Memory management functions
 // [Array]              Dynamic array implementation
+// [Mutex]              Simple locking for resource protection
+// [Output]             Basic output to stdout and stderr
 //
 //------------------------------------------------------------------------------
 
@@ -53,6 +58,7 @@
 #define KORE_OS_LINUX NO
 #define KORE_OS_MACOS NO
 #define KORE_OS_BSD NO
+#define KORE_OS_POSIX NO
 
 #if defined(_WIN32) || defined(_WIN64)
 #    undef KORE_OS_WINDOWS
@@ -68,6 +74,11 @@
 #    define KORE_OS_BSD YES
 #else
 #    error "Unsupported OS. Please use Windows, Linux, macOS, or BSD."
+#endif
+
+#if KORE_OS_LINUX || KORE_OS_MACOS || KORE_OS_BSD
+#    undef KORE_OS_POSIX
+#    define KORE_OS_POSIX YES
 #endif
 
 //
@@ -127,6 +138,12 @@
         "Unsupported compiler for debug break. Please use GCC, Clang, or MSVC."
 #endif
 
+//----------------------------------------------------------------------[Macros]
+
+#define internal static
+#define global_variable static
+#define local_persist static
+
 //-----------------------------------------------------------------------[Types]
 
 typedef uint8_t u8;   // Unsigned 8-bit integer
@@ -145,28 +162,34 @@ typedef ptrdiff_t isize; // Signed size type (platform-dependent)
 typedef float f32;  // 32-bit floating point
 typedef double f64; // 64-bit floating point
 
+typedef const char* cstr; // Constant string type
+
+//---------------------------------------------------------------------[Library]
+
+void kore_init(void);
+void kore_done(void);
+
 //----------------------------------------------------------------------[Memory]
 
-void* memory_alloc(usize size, const char* file, int line);
-void* memory_realloc(void* ptr, usize size, const char* file, int line);
-void memory_free(void* ptr, const char* file, int line);
+void* mem_alloc(usize size, const char* file, int line);
+void* mem_realloc(void* ptr, usize size, const char* file, int line);
+void* mem_free(void* ptr, const char* file, int line);
 
-usize memory_size(const void* ptr);
-void memory_leak(void* ptr);
+usize mem_size(const void* ptr);
+void mem_leak(void* ptr);
 
 // Memory debugging utilities
 #if KORE_DEBUG
-void memory_print_leaks(void);
-usize memory_get_allocation_count(void);
-usize memory_get_total_allocated(void);
+void mem_print_leaks(void);
+usize mem_get_allocation_count(void);
+usize mem_get_total_allocated(void);
 #endif // KORE_DEBUG
 
-#define KORE_MALLOC(size) memory_alloc((size), __FILE__, __LINE__)
-#define KORE_REALLOC(ptr, size)                                                \
-    memory_realloc((ptr), (size), __FILE__, __LINE__)
-#define KORE_FREE(ptr) memory_free((ptr), __FILE__, __LINE__), (ptr) = NULL
+#define KORE_ALLOC(size) mem_alloc((size), __FILE__, __LINE__)
+#define KORE_REALLOC(ptr, size) mem_realloc((ptr), (size), __FILE__, __LINE__)
+#define KORE_FREE(ptr) ptr = mem_free((ptr), __FILE__, __LINE__), (ptr) = NULL
 
-void memory_break_on_alloc(u64 index);
+void mem_break_on_alloc(u64 index);
 
 //-----------------------------------------------------------------------[Array]
 
@@ -179,7 +202,7 @@ typedef struct KArrayHeader_t {
 // Level 0 accessor macros - assumes that (a) is non-NULL and is a valid array
 #define __array_info(a) ((KArrayHeader*)(a) - 1)
 #define __array_bytes_capacity(a)                                              \
-    (memory_size(__array_info(a)) - sizeof(KArrayHeader))
+    (mem_size(__array_info(a)) - sizeof(KArrayHeader))
 #define __array_count(a) (__array_info(a)->count)
 #define __array_bytes_size(a) (__array_count(a) * sizeof(*(a)))
 #define __array_safe(a, op) ((a) ? (op) : 0)
@@ -210,6 +233,113 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity);
         }                                                                      \
     } while (0)
 
+#define array_requires(a, required_capacity)                                   \
+    (a) = (typeof(*(a))*)array_maybe_grow(                                     \
+        (a), sizeof(*(a)), (required_capacity))
+
+#define array_leak(a) mem_leak(__array_info(a))
+
+//-----------------------------------------------------------------------[Mutex]
+
+#if KORE_OS_WINDOWS
+typedef CriticalSection Mutex;
+#elif KORE_OS_POSIX
+#    include <pthread.h>
+typedef pthread_mutex_t Mutex;
+#else
+#    error "Mutex not implemented for this OS."
+#endif
+
+void mutex_init(Mutex* mutex);
+void mutex_done(Mutex* mutex);
+void mutex_lock(Mutex* mutex);
+void mutex_unlock(Mutex* mutex);
+
+//----------------------------------------------------------------------[Output]
+
+void prv(const char* format, va_list args);
+void pr(const char* format, ...);
+void prn(const char* format, ...);
+void eprv(const char* format, va_list args);
+void epr(const char* format, ...);
+void eprn(const char* format, ...);
+
+#define ANSI_RESET "\033[0m"
+#define ANSI_BOLD "\033[1m"
+#define ANSI_FAINT "\033[2m"
+#define ANSI_UNDERLINE "\033[4m"
+#define ANSI_INVERSED "\033[7m"
+
+#define ANSI_BLACK "\033[30m"
+#define ANSI_RED "\033[31m"
+#define ANSI_GREEN "\033[32m"
+#define ANSI_YELLOW "\033[33m"
+#define ANSI_BLUE "\033[34m"
+#define ANSI_MAGENTA "\033[35m"
+#define ANSI_CYAN "\033[36m"
+#define ANSI_WHITE "\033[37m"
+
+#define ANSI_BOLD_BLACK "\033[1;30m"
+#define ANSI_BOLD_RED "\033[1;31m"
+#define ANSI_BOLD_GREEN "\033[1;32m"
+#define ANSI_BOLD_YELLOW "\033[1;33m"
+#define ANSI_BOLD_BLUE "\033[1;34m"
+#define ANSI_BOLD_MAGENTA "\033[1;35m"
+#define ANSI_BOLD_CYAN "\033[1;36m"
+#define ANSI_BOLD_WHITE "\033[1;37m"
+
+#define ANSI_FAINT_BLACK "\033[2;30m"
+#define ANSI_FAINT_RED "\033[2;31m"
+#define ANSI_FAINT_GREEN "\033[2;32m"
+#define ANSI_FAINT_YELLOW "\033[2;33m"
+#define ANSI_FAINT_BLUE "\033[2;34m"
+#define ANSI_FAINT_MAGENTA "\033[2;35m"
+#define ANSI_FAINT_CYAN "\033[2;36m"
+#define ANSI_FAINT_WHITE "\033[2;37m"
+
+#define ANSI_BG_BLACK "\033[40m"
+#define ANSI_BG_RED "\033[41m"
+#define ANSI_BG_GREEN "\033[42m"
+#define ANSI_BG_YELLOW "\033[43m"
+#define ANSI_BG_BLUE "\033[44m"
+#define ANSI_BG_MAGENTA "\033[45m"
+#define ANSI_BG_CYAN "\033[46m"
+#define ANSI_BG_WHITE "\033[47m"
+
+#define ANSI_BG_BOLD_BLACK "\033[1;40m"
+#define ANSI_BG_BOLD_RED "\033[1;41m"
+#define ANSI_BG_BOLD_GREEN "\033[1;42m"
+#define ANSI_BG_BOLD_YELLOW "\033[1;43m"
+#define ANSI_BG_BOLD_BLUE "\033[1;44m"
+#define ANSI_BG_BOLD_MAGENTA "\033[1;45m"
+#define ANSI_BG_BOLD_CYAN "\033[1;46m"
+#define ANSI_BG_BOLD_WHITE "\033[1;47m"
+
+#define ANSI_BG_FAINT_BLACK "\033[2;40m"
+#define ANSI_BG_FAINT_RED "\033[2;41m"
+#define ANSI_BG_FAINT_GREEN "\033[2;42m"
+#define ANSI_BG_FAINT_YELLOW "\033[2;43m"
+#define ANSI_BG_FAINT_BLUE "\033[2;44m"
+#define ANSI_BG_FAINT_MAGENTA "\033[2;45m"
+#define ANSI_BG_FAINT_CYAN "\033[2;46m"
+#define ANSI_BG_FAINT_WHITE "\033[2;47m"
+
+#define UNICODE_TREE_BRANCH "├─ "
+#define UNICODE_TREE_LAST_BRANCH "└─ "
+#define UNICODE_TREE_VERTICAL "│  "
+
+#define UNICODE_TABLE_TOP_LEFT "┌"
+#define UNICODE_TABLE_TOP_RIGHT "┐"
+#define UNICODE_TABLE_BOTTOM_LEFT "└"
+#define UNICODE_TABLE_BOTTOM_RIGHT "┘"
+#define UNICODE_TABLE_HORIZONTAL "─"
+#define UNICODE_TABLE_VERTICAL "│"
+#define UNICODE_TABLE_T_LEFT "├"
+#define UNICODE_TABLE_T_RIGHT "┤"
+#define UNICODE_TABLE_T_TOP "┬"
+#define UNICODE_TABLE_T_BOTTOM "┴"
+#define UNICODE_TABLE_CROSS "┼"
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 // I M P L E M E N T A T I O N
@@ -220,6 +350,15 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity);
 
 #    include <stdio.h>
 #    include <stdlib.h>
+#    include <threads.h>
+
+#    if KORE_OS_POSIX
+#        include <unistd.h>
+#    endif // KORE_OS_POSIX
+
+//---------------------------------------------------------------------[Globals]
+
+Mutex g_kore_output_mutex;
 
 //----------------------------------------------------------------------[Memory]
 
@@ -245,7 +384,7 @@ static u64 g_memory_index           = 0; // Global index for allocations
 static u64 g_memory_break_index     = 0; // Index to break on allocation
 #    endif                           // KORE_DEBUG
 
-void* memory_alloc(usize size, const char* file, int line) {
+void* mem_alloc(usize size, const char* file, int line) {
     KMemoryHeader* header =
         (KMemoryHeader*)malloc(sizeof(KMemoryHeader) + size);
     if (!header) {
@@ -274,9 +413,9 @@ void* memory_alloc(usize size, const char* file, int line) {
     return (void*)(header + 1);
 }
 
-void* memory_realloc(void* ptr, usize size, const char* file, int line) {
+void* mem_realloc(void* ptr, usize size, const char* file, int line) {
     if (!ptr) {
-        return memory_alloc(size, file, line);
+        return mem_alloc(size, file, line);
     }
 
     KMemoryHeader* old_header = (KMemoryHeader*)ptr - 1;
@@ -332,12 +471,12 @@ void* memory_realloc(void* ptr, usize size, const char* file, int line) {
     return (void*)(header + 1);
 }
 
-void memory_free(void* ptr, const char* file, int line) {
+void* mem_free(void* ptr, const char* file, int line) {
     (void)file; // Suppress unused parameter warning
     (void)line; // Suppress unused parameter warning
 
     if (!ptr) {
-        return;
+        return nullptr;
     }
 
     KMemoryHeader* header = (KMemoryHeader*)ptr - 1;
@@ -360,9 +499,10 @@ void memory_free(void* ptr, const char* file, int line) {
 #    endif // KORE_DEBUG
 
     free(header);
+    return nullptr;
 }
 
-usize memory_size(const void* ptr) {
+usize mem_size(const void* ptr) {
     if (!ptr) {
         return 0;
     }
@@ -371,7 +511,7 @@ usize memory_size(const void* ptr) {
     return header->size;
 }
 
-void memory_leak(void* ptr) {
+void mem_leak(void* ptr) {
 #    if KORE_DEBUG
 
     if (!ptr) {
@@ -397,7 +537,7 @@ void memory_leak(void* ptr) {
 #    endif // KORE_DEBUG
 }
 
-void memory_break_on_alloc(u64 index) {
+void mem_break_on_alloc(u64 index) {
 #    if KORE_DEBUG
     g_memory_break_index = index;
 #    endif
@@ -406,7 +546,7 @@ void memory_break_on_alloc(u64 index) {
 #    if KORE_DEBUG
 
 // Memory debugging utilities
-void memory_print_leaks(void) {
+void mem_print_leaks(void) {
     KMemoryHeader* current = g_memory_head;
     usize leak_count       = 0;
     usize total_leaked     = 0;
@@ -433,7 +573,7 @@ void memory_print_leaks(void) {
     printf("Total: %zu leaks, %zu bytes\n", leak_count, total_leaked);
 }
 
-usize memory_get_allocation_count(void) {
+usize mem_get_allocation_count(void) {
     usize count            = 0;
     KMemoryHeader* current = g_memory_head;
 
@@ -445,7 +585,7 @@ usize memory_get_allocation_count(void) {
     return count;
 }
 
-usize memory_get_total_allocated(void) {
+usize mem_get_total_allocated(void) {
     usize total            = 0;
     KMemoryHeader* current = g_memory_head;
 
@@ -471,7 +611,7 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity) {
             initial_capacity = required_capacity;
         }
 
-        KArrayHeader* header = (KArrayHeader*)KORE_MALLOC(
+        KArrayHeader* header = (KArrayHeader*)KORE_ALLOC(
             sizeof(KArrayHeader) + initial_capacity * element_size);
         header->count = 0; // No elements yet
 
@@ -479,8 +619,8 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity) {
     }
 
     // Calculate current capacity from memory size
-    KArrayHeader* header         = (KArrayHeader*)array - 1;
-    usize current_capacity_bytes = memory_size(header) - sizeof(KArrayHeader);
+    KArrayHeader* header            = (KArrayHeader*)array - 1;
+    usize current_capacity_bytes    = mem_size(header) - sizeof(KArrayHeader);
     usize current_capacity_elements = current_capacity_bytes / element_size;
 
     if (required_capacity <= current_capacity_elements) {
@@ -502,6 +642,133 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity) {
 
     return (void*)(new_header + 1);
 }
+
+//-----------------------------------------------------------------------[Mutex]
+
+#    if KORE_OS_WINDOWS
+
+void mutex_init(Mutex* mutex) { InitializeCriticalSection(mutex); }
+
+void mutex_done(Mutex* mutex) { DeleteCriticalSection(mutex); }
+
+void mutex_lock(Mutex* mutex) { EnterCriticalSection(mutex); }
+
+void mutex_unlock(Mutex* mutex) { LeaveCriticalSection(mutex); }
+
+#    else // KORE_OS_POSIX
+
+void mutex_init(Mutex* mutex) { pthread_mutex_init(mutex, NULL); }
+
+void mutex_done(Mutex* mutex) { pthread_mutex_destroy(mutex); }
+
+void mutex_lock(Mutex* mutex) { pthread_mutex_lock(mutex); }
+
+void mutex_unlock(Mutex* mutex) { pthread_mutex_unlock(mutex); }
+
+#    endif // KORE_OS_WINDOWS
+
+//----------------------------------------------------------------------[Output]
+
+internal cstr _format_output(cstr format, va_list args, usize* out_size) {
+    thread_local local_persist Array(char) print_buffer = NULL;
+
+    // Get the size of the formatted string.
+    va_list args_copy;
+    va_copy(args_copy, args);
+    *out_size = vsnprintf(NULL, 0, format, args_copy);
+    va_end(args_copy);
+
+    // Allocate or reallocate the print buffer if necessary.
+    array_requires(print_buffer, *out_size + 1);
+    array_leak(print_buffer); // Prevent detection in leaks
+
+    // Format the string into the buffer.
+    vsnprintf(print_buffer, *out_size + 1, format, args);
+
+    return print_buffer;
+}
+
+#    if KORE_OS_POSIX
+
+internal void fprv(int fd, cstr format, va_list args) {
+    usize size;
+    mutex_lock(&g_kore_output_mutex);
+    cstr output = _format_output(format, args, &size);
+    write(fd, output, size);
+    mutex_unlock(&g_kore_output_mutex);
+}
+
+void prv(cstr format, va_list args) { fprv(STDOUT_FILENO, format, args); }
+void eprv(cstr format, va_list args) { fprv(STDERR_FILENO, format, args); }
+
+#    elif defined(KORE_OS_WINDOWS)
+
+internal void fprv(HANDLE handle, cstr format, va_list args) {
+    usize size;
+    mutex_lock(&g_kore_output_mutex);
+    cstr output = _format_output(format, args, &size);
+
+    // Write to the file handle.
+    DWORD console_mode;
+    BOOL is_console = GetConsoleMode(handle, &console_mode);
+
+    DWORD bytes_written;
+    if (is_console) {
+        WriteConsoleA(handle, output, size, &bytes_written, NULL);
+    } else {
+        WriteFile(handle, output, size, &bytes_written, NULL);
+    }
+    mutex_unlock(&g_kore_output_mutex);
+}
+
+void prv(cstr format, va_list args) {
+    fprv(GetStdHandle(STD_OUTPUT_HANDLE), format, args);
+}
+
+void eprv(cstr format, va_list args) {
+    fprv(GetStdHandle(STD_ERROR_HANDLE), format, args);
+}
+
+#    else
+#        error "Output functions not implemented for this OS."
+
+#    endif // KORE_OS_POSIX
+
+void pr(cstr format, ...) {
+    va_list args;
+    va_start(args, format);
+    prv(format, args);
+    va_end(args);
+}
+
+void prn(cstr format, ...) {
+    va_list args;
+    va_start(args, format);
+    prv(format, args);
+    pr("\n");
+    va_end(args);
+}
+
+void epr(cstr format, ...) {
+    va_list args;
+    va_start(args, format);
+    eprv(format, args);
+    va_end(args);
+}
+
+void eprn(cstr format, ...) {
+    va_list args;
+    va_start(args, format);
+    eprv(format, args);
+    epr("\n");
+    va_end(args);
+}
+
+//---------------------------------------------------------------------[Library]
+
+void kore_init(void) { mutex_init(&g_kore_output_mutex); }
+
+void kore_done(void) { mutex_done(&g_kore_output_mutex); }
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------

@@ -6,6 +6,7 @@
                 "${workspaceFolder}/**"
             ],
             "defines": [
+                "nullptr",
                 "KORE_IMPLEMENTATION"
             ],
             "compilerPath": "C:/Users/matt/scoop/apps/llvm/current/bin/clang++.exe",

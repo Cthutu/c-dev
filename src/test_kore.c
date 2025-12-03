@@ -6,10 +6,10 @@
 #include <string.h>
 
 TEST_CASE(memory, simple) {
-    void* p = KORE_MALLOC(100);
+    void* p = KORE_ALLOC(100);
     TEST_ASSERT_NOT_NULL(p);
 
-    usize size = memory_size(p);
+    usize size = mem_size(p);
     TEST_ASSERT_EQ(size, 100);
 
     KORE_FREE(p);
@@ -18,17 +18,17 @@ TEST_CASE(memory, simple) {
 
 TEST_CASE(memory, multiple_sizes) {
     // Test various allocation sizes
-    void* p1 = KORE_MALLOC(1);
-    void* p2 = KORE_MALLOC(1024);
-    void* p3 = KORE_MALLOC(4096);
+    void* p1 = KORE_ALLOC(1);
+    void* p2 = KORE_ALLOC(1024);
+    void* p3 = KORE_ALLOC(4096);
 
     TEST_ASSERT_NOT_NULL(p1);
     TEST_ASSERT_NOT_NULL(p2);
     TEST_ASSERT_NOT_NULL(p3);
 
-    TEST_ASSERT_EQ(memory_size(p1), 1);
-    TEST_ASSERT_EQ(memory_size(p2), 1024);
-    TEST_ASSERT_EQ(memory_size(p3), 4096);
+    TEST_ASSERT_EQ(mem_size(p1), 1);
+    TEST_ASSERT_EQ(mem_size(p2), 1024);
+    TEST_ASSERT_EQ(mem_size(p3), 4096);
 
     KORE_FREE(p1);
     KORE_FREE(p2);
@@ -40,19 +40,19 @@ TEST_CASE(memory, multiple_sizes) {
 }
 
 TEST_CASE(memory, basic) {
-    void* p = KORE_MALLOC(100);
+    void* p = KORE_ALLOC(100);
     TEST_ASSERT_NOT_NULL(p);
-    TEST_ASSERT_EQ(memory_size(p), 100);
+    TEST_ASSERT_EQ(mem_size(p), 100);
 
     // Grow the allocation
     p = KORE_REALLOC(p, 200);
     TEST_ASSERT_NOT_NULL(p);
-    TEST_ASSERT_EQ(memory_size(p), 200);
+    TEST_ASSERT_EQ(mem_size(p), 200);
 
     // Shrink the allocation
     p = KORE_REALLOC(p, 50);
     TEST_ASSERT_NOT_NULL(p);
-    TEST_ASSERT_EQ(memory_size(p), 50);
+    TEST_ASSERT_EQ(mem_size(p), 50);
 
     KORE_FREE(p);
     TEST_ASSERT_NULL(p);
@@ -62,7 +62,7 @@ TEST_CASE(memory, null_ptr) {
     // Realloc with NULL pointer should behave like malloc
     void* p = KORE_REALLOC(NULL, 100);
     TEST_ASSERT_NOT_NULL(p);
-    TEST_ASSERT_EQ(memory_size(p), 100);
+    TEST_ASSERT_EQ(mem_size(p), 100);
 
     KORE_FREE(p);
     TEST_ASSERT_NULL(p);
@@ -77,68 +77,68 @@ TEST_CASE(memory, free_null) {
 
 TEST_CASE(memory, size_null) {
     // Size of NULL pointer should return 0
-    usize size = memory_size(NULL);
+    usize size = mem_size(NULL);
     TEST_ASSERT_EQ(size, 0);
 }
 
 TEST_CASE(memory, allocation_tracking) {
     // Test allocation count tracking (KORE_DEBUG only)
-    usize initial_count = memory_get_allocation_count();
-    usize initial_total = memory_get_total_allocated();
+    usize initial_count = mem_get_allocation_count();
+    usize initial_total = mem_get_total_allocated();
 
-    void* p1            = KORE_MALLOC(100);
-    void* p2            = KORE_MALLOC(200);
+    void* p1            = KORE_ALLOC(100);
+    void* p2            = KORE_ALLOC(200);
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 2);
-    TEST_ASSERT_EQ(memory_get_total_allocated(), initial_total + 300);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 2);
+    TEST_ASSERT_EQ(mem_get_total_allocated(), initial_total + 300);
 
     KORE_FREE(p1);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
-    TEST_ASSERT_EQ(memory_get_total_allocated(), initial_total + 200);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
+    TEST_ASSERT_EQ(mem_get_total_allocated(), initial_total + 200);
 
     KORE_FREE(p2);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
-    TEST_ASSERT_EQ(memory_get_total_allocated(), initial_total);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_total_allocated(), initial_total);
 }
 
 TEST_CASE(memory, realloc_tracking) {
     // Test that realloc properly updates tracking
-    usize initial_count = memory_get_allocation_count();
-    usize initial_total = memory_get_total_allocated();
+    usize initial_count = mem_get_allocation_count();
+    usize initial_total = mem_get_total_allocated();
 
-    void* p             = KORE_MALLOC(100);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
-    TEST_ASSERT_EQ(memory_get_total_allocated(), initial_total + 100);
+    void* p             = KORE_ALLOC(100);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
+    TEST_ASSERT_EQ(mem_get_total_allocated(), initial_total + 100);
 
     p = KORE_REALLOC(p, 300);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
-    TEST_ASSERT_EQ(memory_get_total_allocated(), initial_total + 300);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
+    TEST_ASSERT_EQ(mem_get_total_allocated(), initial_total + 300);
 
     p = KORE_REALLOC(p, 50);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
-    TEST_ASSERT_EQ(memory_get_total_allocated(), initial_total + 50);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
+    TEST_ASSERT_EQ(mem_get_total_allocated(), initial_total + 50);
 
     KORE_FREE(p);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
-    TEST_ASSERT_EQ(memory_get_total_allocated(), initial_total);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_total_allocated(), initial_total);
 }
 
 TEST_CASE(memory, basic_detection) {
     // Test leak detection by intentionally leaking memory
-    usize initial_count = memory_get_allocation_count();
+    usize initial_count = mem_get_allocation_count();
 
-    void* leak1         = KORE_MALLOC(100);
-    void* leak2         = KORE_MALLOC(200);
+    void* leak1         = KORE_ALLOC(100);
+    void* leak2         = KORE_ALLOC(200);
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 2);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 2);
 
     // Note: We intentionally don't free leak1 and leak2 here
-    // The leak detection would catch these when memory_print_leaks() is
+    // The leak detection would catch these when mem_print_leaks() is
     // called For the test, we'll clean up to avoid affecting other tests
     KORE_FREE(leak1);
     KORE_FREE(leak2);
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 }
 
 TEST_CASE(memory, many_allocations) {
@@ -146,16 +146,16 @@ TEST_CASE(memory, many_allocations) {
     const usize num_allocs = 100;
     void* ptrs[num_allocs];
 
-    usize initial_count = memory_get_allocation_count();
+    usize initial_count = mem_get_allocation_count();
 
     // Allocate many small blocks
     for (usize i = 0; i < num_allocs; i++) {
-        ptrs[i] = KORE_MALLOC(i + 1);
+        ptrs[i] = KORE_ALLOC(i + 1);
         TEST_ASSERT_NOT_NULL(ptrs[i]);
-        TEST_ASSERT_EQ(memory_size(ptrs[i]), i + 1);
+        TEST_ASSERT_EQ(mem_size(ptrs[i]), i + 1);
     }
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + num_allocs);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + num_allocs);
 
     // Free them all
     for (usize i = 0; i < num_allocs; i++) {
@@ -163,7 +163,7 @@ TEST_CASE(memory, many_allocations) {
         TEST_ASSERT_NULL(ptrs[i]);
     }
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 }
 
 TEST_CASE(memory, basic_structure) {
@@ -172,10 +172,10 @@ TEST_CASE(memory, basic_structure) {
     extern KMemoryHeader* g_memory_head;
 
     // Start with a clean slate
-    usize initial_count = memory_get_allocation_count();
+    usize initial_count = mem_get_allocation_count();
 
     // Allocate first block
-    void* p1            = KORE_MALLOC(100);
+    void* p1            = KORE_ALLOC(100);
     TEST_ASSERT_NOT_NULL(p1);
 
     // The header should be at p1 - 1
@@ -185,7 +185,7 @@ TEST_CASE(memory, basic_structure) {
     TEST_ASSERT_NULL(header1->next); // First allocation, so next should be NULL
 
     // Allocate second block
-    void* p2 = KORE_MALLOC(200);
+    void* p2 = KORE_ALLOC(200);
     TEST_ASSERT_NOT_NULL(p2);
 
     // The new header should be at the head of the list
@@ -196,7 +196,7 @@ TEST_CASE(memory, basic_structure) {
     TEST_ASSERT_NULL(header1->next);        // Still should be NULL
 
     // Allocate third block
-    void* p3 = KORE_MALLOC(300);
+    void* p3 = KORE_ALLOC(300);
     TEST_ASSERT_NOT_NULL(p3);
 
     KMemoryHeader* header3 = (KMemoryHeader*)p3 - 1;
@@ -217,17 +217,17 @@ TEST_CASE(memory, basic_structure) {
     KORE_FREE(p1);
     KORE_FREE(p3);
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 }
 
 TEST_CASE(memory, realloc_list_update) {
     // Test that realloc properly updates the linked list
     extern KMemoryHeader* g_memory_head;
 
-    usize initial_count            = memory_get_allocation_count();
+    usize initial_count            = mem_get_allocation_count();
 
     // Allocate some memory
-    void* p                        = KORE_MALLOC(100);
+    void* p                        = KORE_ALLOC(100);
     KMemoryHeader* original_header = (KMemoryHeader*)p - 1;
 
     TEST_ASSERT_EQ(g_memory_head, original_header);
@@ -244,7 +244,7 @@ TEST_CASE(memory, realloc_list_update) {
     TEST_ASSERT_EQ(new_header->size, 500);
 
     // Allocate another block to test list structure
-    void* p2               = KORE_MALLOC(50);
+    void* p2               = KORE_ALLOC(50);
     KMemoryHeader* header2 = (KMemoryHeader*)p2 - 1;
 
     TEST_ASSERT_EQ(g_memory_head, header2);
@@ -254,14 +254,14 @@ TEST_CASE(memory, realloc_list_update) {
     KORE_FREE(p);
     KORE_FREE(p2);
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 }
 
 TEST_CASE(memory, file_line_tracking) {
     // Test that file and line information is correctly stored
     extern KMemoryHeader* g_memory_head;
 
-    void* p               = KORE_MALLOC(42);
+    void* p               = KORE_ALLOC(42);
     KMemoryHeader* header = (KMemoryHeader*)p - 1;
 
     TEST_ASSERT_NOT_NULL(header->file);
@@ -277,17 +277,17 @@ TEST_CASE(memory, integrity_stress) {
     // Stress test the linked list with multiple allocations and random frees
     extern KMemoryHeader* g_memory_head;
 
-    usize initial_count    = memory_get_allocation_count();
+    usize initial_count    = mem_get_allocation_count();
     const usize num_allocs = 10;
     void* ptrs[num_allocs];
 
     // Allocate multiple blocks
     for (usize i = 0; i < num_allocs; i++) {
-        ptrs[i] = KORE_MALLOC((i + 1) * 10);
+        ptrs[i] = KORE_ALLOC((i + 1) * 10);
         TEST_ASSERT_NOT_NULL(ptrs[i]);
     }
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + num_allocs);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + num_allocs);
 
     // Free every other block to test list removal from middle
     for (usize i = 0; i < num_allocs; i += 2) {
@@ -295,7 +295,7 @@ TEST_CASE(memory, integrity_stress) {
         ptrs[i] = NULL;
     }
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(),
+    TEST_ASSERT_EQ(mem_get_allocation_count(),
                    initial_count + (num_allocs / 2));
 
     // Verify the remaining blocks are still valid by checking their headers
@@ -315,27 +315,27 @@ TEST_CASE(memory, integrity_stress) {
         KORE_FREE(ptrs[i]);
     }
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 }
 
 TEST_CASE(memory, basic_leak_marking) {
     // Test basic leak marking functionality
     extern KMemoryHeader* g_memory_head;
 
-    usize initial_count = memory_get_allocation_count();
+    usize initial_count = mem_get_allocation_count();
 
     // Allocate some memory
-    void* p1            = KORE_MALLOC(100);
-    void* p2            = KORE_MALLOC(200);
+    void* p1            = KORE_ALLOC(100);
+    void* p2            = KORE_ALLOC(200);
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 2);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 2);
 
     // Mark p1 as leaked
-    memory_leak(p1);
+    mem_leak(p1);
 
     // p1 should be removed from the linked list, so allocation count should
     // decrease
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
 
     // Verify p1's header is not in the linked list anymore
     KMemoryHeader* current   = g_memory_head;
@@ -369,28 +369,28 @@ TEST_CASE(memory, basic_leak_marking) {
 
     // Clean up p2 (p1 is leaked intentionally)
     KORE_FREE(p2);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 }
 
 TEST_CASE(memory, realloc_preserves_flag) {
     // Test that realloc preserves the leaked flag
     extern KMemoryHeader* g_memory_head;
 
-    usize initial_count = memory_get_allocation_count();
+    usize initial_count = mem_get_allocation_count();
 
     // Allocate memory
-    void* p1            = KORE_MALLOC(100);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
+    void* p1            = KORE_ALLOC(100);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
 
     // Mark as leaked
-    memory_leak(p1);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    mem_leak(p1);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 
     // Realloc the leaked memory
     void* p2 = KORE_REALLOC(p1, 200);
 
     // Should still be leaked (not in the linked list)
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 
     // Verify the reallocated memory is not in the linked list
     KMemoryHeader* current   = g_memory_head;
@@ -415,19 +415,19 @@ TEST_CASE(memory, realloc_then_mark) {
     // Test marking as leaked after realloc
     extern KMemoryHeader* g_memory_head;
 
-    usize initial_count = memory_get_allocation_count();
+    usize initial_count = mem_get_allocation_count();
 
     // Allocate memory
-    void* p1            = KORE_MALLOC(100);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
+    void* p1            = KORE_ALLOC(100);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
 
     // Realloc first
     void* p2 = KORE_REALLOC(p1, 200);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
 
     // Then mark as leaked
-    memory_leak(p2);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    mem_leak(p2);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 
     // Verify p2 is not in the linked list
     KMemoryHeader* current   = g_memory_head;
@@ -450,31 +450,31 @@ TEST_CASE(memory, multiple_operations) {
     // Test complex scenario with multiple allocations, leaks, and reallocs
     extern KMemoryHeader* g_memory_head;
 
-    usize initial_count = memory_get_allocation_count();
+    usize initial_count = mem_get_allocation_count();
 
     // Allocate several blocks
-    void* p1            = KORE_MALLOC(100);
-    void* p2            = KORE_MALLOC(200);
-    void* p3            = KORE_MALLOC(300);
+    void* p1            = KORE_ALLOC(100);
+    void* p2            = KORE_ALLOC(200);
+    void* p3            = KORE_ALLOC(300);
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 3);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 3);
 
     // Mark p2 as leaked
-    memory_leak(p2);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 2);
+    mem_leak(p2);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 2);
 
     // Realloc p1
     void* p1_new = KORE_REALLOC(p1, 150);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 2);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 2);
 
     // Realloc the leaked p2
     void* p2_new = KORE_REALLOC(p2, 250);
-    TEST_ASSERT_EQ(memory_get_allocation_count(),
+    TEST_ASSERT_EQ(mem_get_allocation_count(),
                    initial_count + 2); // Still leaked
 
     // Mark p3 as leaked
-    memory_leak(p3);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
+    mem_leak(p3);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
 
     // Only p1_new should be in the linked list now
     usize count            = 0;
@@ -487,7 +487,7 @@ TEST_CASE(memory, multiple_operations) {
 
     // Clean up the non-leaked allocation
     KORE_FREE(p1_new);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 
     // Clean up the leaked allocations
     KORE_FREE(p2_new);
@@ -496,30 +496,30 @@ TEST_CASE(memory, multiple_operations) {
 
 TEST_CASE(memory, null_pointer) {
     // Test that leaking a NULL pointer is safe
-    usize initial_count = memory_get_allocation_count();
+    usize initial_count = mem_get_allocation_count();
 
     // This should not crash or affect anything
-    memory_leak(NULL);
+    mem_leak(NULL);
 
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 }
 
 TEST_CASE(memory, double_mark) {
     // Test marking the same allocation as leaked twice
     extern KMemoryHeader* g_memory_head;
 
-    usize initial_count = memory_get_allocation_count();
+    usize initial_count = mem_get_allocation_count();
 
-    void* p             = KORE_MALLOC(100);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count + 1);
+    void* p             = KORE_ALLOC(100);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count + 1);
 
     // Mark as leaked first time
-    memory_leak(p);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    mem_leak(p);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 
     // Mark as leaked second time - should be safe
-    memory_leak(p);
-    TEST_ASSERT_EQ(memory_get_allocation_count(), initial_count);
+    mem_leak(p);
+    TEST_ASSERT_EQ(mem_get_allocation_count(), initial_count);
 
     // Verify it's still not in the linked list
     KMemoryHeader* current  = g_memory_head;
@@ -544,9 +544,9 @@ TEST_CASE(memory, sequential) {
 
     u64 initial_index      = g_memory_index;
 
-    void* p1               = KORE_MALLOC(100);
-    void* p2               = KORE_MALLOC(200);
-    void* p3               = KORE_MALLOC(300);
+    void* p1               = KORE_ALLOC(100);
+    void* p2               = KORE_ALLOC(200);
+    void* p3               = KORE_ALLOC(300);
 
     KMemoryHeader* header1 = (KMemoryHeader*)p1 - 1;
     KMemoryHeader* header2 = (KMemoryHeader*)p2 - 1;
@@ -571,7 +571,7 @@ TEST_CASE(memory, realloc_gets_new_index) {
 
     u64 initial_index             = g_memory_index;
 
-    void* p                       = KORE_MALLOC(100);
+    void* p                       = KORE_ALLOC(100);
     KMemoryHeader* initial_header = (KMemoryHeader*)p - 1;
     u64 first_index               = initial_header->index;
 
@@ -595,12 +595,12 @@ TEST_CASE(memory, mixed_operations) {
 
     u64 initial_index      = g_memory_index;
 
-    void* p1               = KORE_MALLOC(100); // index: initial + 1
-    void* p2               = KORE_MALLOC(200); // index: initial + 2
+    void* p1               = KORE_ALLOC(100); // index: initial + 1
+    void* p2               = KORE_ALLOC(200); // index: initial + 2
 
     p1                     = KORE_REALLOC(p1, 150); // index: initial + 3
 
-    void* p3               = KORE_MALLOC(300); // index: initial + 4
+    void* p3               = KORE_ALLOC(300); // index: initial + 4
 
     p2                     = KORE_REALLOC(p2, 250); // index: initial + 5
 
@@ -624,14 +624,14 @@ TEST_CASE(memory, leak_preserves_index) {
 
     u64 initial_index     = g_memory_index;
 
-    void* p               = KORE_MALLOC(100);
+    void* p               = KORE_ALLOC(100);
     KMemoryHeader* header = (KMemoryHeader*)p - 1;
     u64 original_index    = header->index;
 
     TEST_ASSERT_EQ(original_index, initial_index + 1);
 
     // Mark as leaked
-    memory_leak(p);
+    mem_leak(p);
 
     // Index should remain the same
     TEST_ASSERT_EQ(header->index, original_index);
@@ -647,12 +647,12 @@ TEST_CASE(memory, realloc_leaked_gets_new_index) {
 
     u64 initial_index     = g_memory_index;
 
-    void* p               = KORE_MALLOC(100); // index: initial + 1
+    void* p               = KORE_ALLOC(100); // index: initial + 1
     KMemoryHeader* header = (KMemoryHeader*)p - 1;
     u64 first_index       = header->index;
 
     // Mark as leaked
-    memory_leak(p);
+    mem_leak(p);
     TEST_ASSERT_EQ(header->index, first_index); // Index preserved
 
     // Realloc leaked memory should get new index
@@ -683,14 +683,14 @@ TEST_CASE(memory, global_advances_correctly) {
 
         if (i % 3 == 0) {
             // Malloc
-            ptrs[i] = KORE_MALLOC((i + 1) * 10);
+            ptrs[i] = KORE_ALLOC((i + 1) * 10);
         } else if (i % 3 == 1 && i > 0) {
             // Realloc previous allocation
             ptrs[i]     = KORE_REALLOC(ptrs[i - 1], (i + 1) * 20);
             ptrs[i - 1] = NULL; // Mark as handled
         } else {
             // Another malloc
-            ptrs[i] = KORE_MALLOC((i + 1) * 15);
+            ptrs[i] = KORE_ALLOC((i + 1) * 15);
         }
 
         u64 after_op = g_memory_index;
@@ -722,19 +722,19 @@ TEST_CASE(memory, break_on_alloc_basic) {
 
     // Set break index to a value that won't be hit
     u64 safe_index           = initial_index + 1000; // Far ahead, won't be hit
-    memory_break_on_alloc(safe_index);
+    mem_break_on_alloc(safe_index);
     TEST_ASSERT_EQ(g_memory_break_index, safe_index);
 
     // Allocate normally (these won't hit the break index)
-    void* p1               = KORE_MALLOC(100); // index: initial + 1
+    void* p1               = KORE_ALLOC(100); // index: initial + 1
     KMemoryHeader* header1 = (KMemoryHeader*)p1 - 1;
     TEST_ASSERT_EQ(header1->index, initial_index + 1);
 
-    void* p2               = KORE_MALLOC(200); // index: initial + 2
+    void* p2               = KORE_ALLOC(200); // index: initial + 2
     KMemoryHeader* header2 = (KMemoryHeader*)p2 - 1;
     TEST_ASSERT_EQ(header2->index, initial_index + 2);
 
-    void* p3               = KORE_MALLOC(300); // index: initial + 3
+    void* p3               = KORE_ALLOC(300); // index: initial + 3
     KMemoryHeader* header3 = (KMemoryHeader*)p3 - 1;
     TEST_ASSERT_EQ(header3->index, initial_index + 3);
 
@@ -747,7 +747,7 @@ TEST_CASE(memory, break_on_alloc_basic) {
     KORE_FREE(p3);
 
     // Restore original break index
-    memory_break_on_alloc(original_break_index);
+    mem_break_on_alloc(original_break_index);
 }
 
 TEST_CASE(memory, break_on_alloc_realloc) {
@@ -758,11 +758,11 @@ TEST_CASE(memory, break_on_alloc_realloc) {
     u64 original_break_index = g_memory_break_index;
     u64 initial_index        = g_memory_index;
 
-    void* p                  = KORE_MALLOC(100); // index: initial + 1
+    void* p                  = KORE_ALLOC(100); // index: initial + 1
 
     // Set break index for a safe value that won't be hit
     u64 safe_index           = initial_index + 1000;
-    memory_break_on_alloc(safe_index);
+    mem_break_on_alloc(safe_index);
 
     // Realloc should get next index (initial + 2), which is safe
     p                     = KORE_REALLOC(p, 200); // index: initial + 2
@@ -776,7 +776,7 @@ TEST_CASE(memory, break_on_alloc_realloc) {
     KORE_FREE(p);
 
     // Restore original break index
-    memory_break_on_alloc(original_break_index);
+    mem_break_on_alloc(original_break_index);
 }
 
 TEST_CASE(memory, uniqueness) {
@@ -789,7 +789,7 @@ TEST_CASE(memory, uniqueness) {
 
     // Allocate multiple blocks
     for (usize i = 0; i < num_allocs; i++) {
-        ptrs[i]               = KORE_MALLOC((i + 1) * 10);
+        ptrs[i]               = KORE_ALLOC((i + 1) * 10);
         KMemoryHeader* header = (KMemoryHeader*)ptrs[i] - 1;
         indices[i]            = header->index;
     }
