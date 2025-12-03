@@ -774,7 +774,12 @@ void eprn(cstr format, ...) {
 
 void kore_init(void) { mutex_init(&g_kore_output_mutex); }
 
-void kore_done(void) { mutex_done(&g_kore_output_mutex); }
+void kore_done(void) {
+    mutex_done(&g_kore_output_mutex);
+#    if KORE_DEBUG
+    mem_print_leaks();
+#    endif // KORE_DEBUG
+}
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
