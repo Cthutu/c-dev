@@ -9,7 +9,7 @@ CYAN='\033[0;36m'
 
 # Set up the environment
 C_COMPILER="clang"
-DEFINES=""
+DEFINES="-D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
 CFLAGS="-Wall -Wextra -Werror -g -std=c23 $DEFINES"
 SRC_DIR="src"
 

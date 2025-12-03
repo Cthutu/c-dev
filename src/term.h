@@ -492,7 +492,7 @@ internal void _term_raw_key(void) {
 //------------------------------------------------------------------------------
 
 internal void _term_on_winch(int sig) {
-    UNUSED(sig);
+    KORE_UNUSED(sig);
     g_term_resize_signal = 1;
 }
 
