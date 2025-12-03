@@ -555,22 +555,28 @@ void mem_print_leaks(void) {
         return;
     }
 
-    printf("Memory leaks detected:\n");
-    printf("========================\n");
+    eprn(ANSI_BOLD_RED "┌──────────────────────────────────────┐" ANSI_RESET);
+    eprn(ANSI_BOLD_RED "│        Memory leaks detected         │" ANSI_RESET);
+    eprn(ANSI_BOLD_RED "└──────────────────────────────────────┘" ANSI_RESET);
 
     while (current) {
-        printf("[%zu] %s:%d: %zu bytes allocated\n",
-               current->index,
-               current->file,
-               current->line,
-               current->size);
+        eprn(ANSI_FAINT " %s" ANSI_RESET ANSI_BOLD "[%zu]" ANSI_RESET
+                        " %s:%d " ANSI_BOLD_YELLOW "%zu bytes" ANSI_RESET,
+             UNICODE_TREE_BRANCH,
+             current->index,
+             current->file,
+             current->line,
+             current->size);
+
         total_leaked += current->size;
         leak_count++;
         current = current->next;
     }
 
-    printf("========================\n");
-    printf("Total: %zu leaks, %zu bytes\n", leak_count, total_leaked);
+    eprn(" " ANSI_FAINT UNICODE_TREE_LAST_BRANCH ANSI_RESET ANSI_BOLD_RED
+         "Total:" ANSI_RESET " %zu leaks, %zu bytes",
+         leak_count,
+         total_leaked);
 }
 
 usize mem_get_allocation_count(void) {
