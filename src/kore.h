@@ -352,12 +352,17 @@ void* arena_alloc(Arena* arena, usize size);
 void arena_align(Arena* arena, usize align);
 void* arena_alloc_align(Arena* arena, usize size, usize align);
 
+u8* arena_formatv(Arena* arena, cstr fmt, va_list args);
+u8* arena_format(Arena* arena, cstr fmt, ...);
+void arena_null_terminate(Arena* arena);
+
 //
 // Arena marks
 //
 
 void* arena_store(Arena* arena);
 void arena_restore(Arena* arena, void* mark);
+void arena_reset(Arena* arena);
 
 //
 // Arena state
@@ -956,6 +961,36 @@ void* arena_alloc_align(Arena* arena, usize size, usize align) {
     return arena_alloc(arena, size);
 }
 
+u8* arena_formatv(Arena* arena, cstr fmt, va_list args) {
+    // Get the size of the formatted string.
+    va_list args_copy;
+    va_copy(args_copy, args);
+    int size = vsnprintf(NULL, 0, fmt, args_copy);
+    va_end(args_copy);
+
+    // Allocate space in the arena.
+    u8* buffer = (u8*)arena_alloc(arena, (usize)size + 1);
+
+    // Format the string into the buffer.
+    vsnprintf((char*)buffer, (usize)size + 1, fmt, args);
+    arena->cursor--; // Remove null terminator from arena allocation
+
+    return buffer;
+}
+
+u8* arena_format(Arena* arena, cstr fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    u8* result = arena_formatv(arena, fmt, args);
+    va_end(args);
+    return result;
+}
+
+void arena_null_terminate(Arena* arena) {
+    u8* ptr = (u8*)arena_alloc(arena, 1);
+    *ptr    = '\0';
+}
+
 void* arena_store(Arena* arena) { return arena->memory + arena->cursor; }
 
 void arena_restore(Arena* arena, void* mark) {
@@ -963,6 +998,8 @@ void arena_restore(Arena* arena, void* mark) {
     KORE_ASSERT(offset <= arena->cursor, "Invalid arena restore point.");
     arena->cursor = offset;
 }
+
+void arena_reset(Arena* arena) { arena->cursor = 0; }
 
 u32 arena_offset(Arena* arena, void* p) {
     return (u32)((u8*)p - arena->memory);
