@@ -223,11 +223,15 @@ typedef struct KArrayHeader_t {
 #define array_count(a) __array_safe((a), __array_count(a))
 
 // Forward declaration for internal array function
-static void*
-array_maybe_grow(void* array, usize element_size, usize required_capacity);
+static void* array_maybe_grow(void* array,
+                              usize element_size,
+                              usize required_capacity,
+                              cstr file,
+                              int line);
 
 #define array_push(a, value)                                                   \
-    ((a) = array_maybe_grow((a), sizeof(*(a)), array_count(a) + 1),            \
+    ((a) = array_maybe_grow(                                                   \
+         (a), sizeof(*(a)), array_count(a) + 1, __FILE__, __LINE__),           \
      (a)[__array_count(a)++] = (value))
 
 #define array_pop(a) ((a)[__array_count(a)-- - 1])
@@ -244,7 +248,7 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity);
 
 #define array_requires(a, required_capacity)                                   \
     (a) = (typeof(*(a))*)array_maybe_grow(                                     \
-        (a), sizeof(*(a)), (required_capacity))
+        (a), sizeof(*(a)), (required_capacity), __FILE__, __LINE__)
 
 #define array_leak(a) mem_leak(__array_info(a))
 
@@ -617,8 +621,11 @@ usize mem_get_total_allocated(void) {
 //-----------------------------------------------------------------------[Array]
 
 // Internal array growth function
-static void*
-array_maybe_grow(void* array, usize element_size, usize required_capacity) {
+static void* array_maybe_grow(void* array,
+                              usize element_size,
+                              usize required_capacity,
+                              cstr file,
+                              int line) {
     if (!array) {
         // Initial allocation
         usize initial_capacity = 4;
