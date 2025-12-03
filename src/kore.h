@@ -148,13 +148,33 @@
 #    include <windows.h>
 #endif // KORE_OS_WINDOWS
 
-//----------------------------------------------------------------------[Macros]
+//------------------------------------------------------------------------------[Macros]
 
 #define internal static
 #define global_variable static
 #define local_persist static
 
-//-----------------------------------------------------------------------[Types]
+#define KORE_KB(x) ((x) * 1024ull)
+#define KORE_MB(x) (KORE_KB(x) * 1024ull)
+#define KORE_GB(x) (KORE_MB(x) * 1024ull)
+
+#define KORE_ALIGN_UP(value, alignment)                                        \
+    (((value) + ((alignment) - 1)) & ~((alignment) - 1))
+
+#define KORE_ALIGN_PTR_UP(type, ptr, alignment)                                \
+    (type*)KORE_ALIGN_UP((usize)(ptr), (alignment))
+
+#define KORE_ASSERT(condition, ...)                                            \
+    do {                                                                       \
+        if (!(condition)) {                                                    \
+            eprn("ASSERTION FAILED: " #condition);                             \
+            eprn(__VA_ARGS__);                                                 \
+            KORE_DEBUG_BREAK();                                                \
+            exit(1);                                                           \
+        }                                                                      \
+    } while (0)
+
+//------------------------------------------------------------------------------[Types]
 
 typedef uint8_t u8;   // Unsigned 8-bit integer
 typedef uint16_t u16; // Unsigned 16-bit integer
