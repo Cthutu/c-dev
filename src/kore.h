@@ -486,6 +486,29 @@ void eprn(const char* format, ...);
 #define UNICODE_TABLE_T_BOTTOM "┴"
 #define UNICODE_TABLE_CROSS "┼"
 
+//------------------------------------------------------------------------------[Time]
+
+typedef u64 TimePoint;
+typedef u64 TimeDuration;
+
+TimePoint time_now(void);
+TimeDuration time_elapsed(TimePoint start, TimePoint end);
+TimePoint time_add_duration(TimePoint time, TimeDuration duration);
+
+void time_sleep_ms(u32 milliseconds);
+
+u64 time_duration_to_secs(TimeDuration duration);
+u64 time_duration_to_ms(TimeDuration duration);
+u64 time_duration_to_us(TimeDuration duration);
+u64 time_duration_to_ns(TimeDuration duration);
+
+f64 time_secs(TimeDuration duration);
+
+TimeDuration time_from_secs(u64 seconds);
+TimeDuration time_from_ms(u64 milliseconds);
+TimeDuration time_from_us(u64 microseconds);
+TimeDuration time_from_ns(u64 nanoseconds);
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 // I M P L E M E N T A T I O N
