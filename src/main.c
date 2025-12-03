@@ -7,11 +7,7 @@ int main() {
     kore_init();
 
     prn("Capacity of array: %zu", array_capacity(arr));
-    array_push(arr, 10);
-    prn("Capacity of array: %zu", array_capacity(arr));
-    array_push(arr, 20);
-    prn("Capacity of array: %zu", array_capacity(arr));
-    array_push(arr, 42);
+    array_push(arr, 10, 20, 42);
     prn("Capacity of array: %zu", array_capacity(arr));
 
     prn("%d", array_pop(arr)); // Should print 42
