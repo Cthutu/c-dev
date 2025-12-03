@@ -30,8 +30,10 @@ int kmain(int argc, char** argv) {
                 break;
             }
 
-            u8 hue_base = (u8)(frame << 3);
-            u32 ink      = term_rgb(20, 20, 30);
+            TimeDuration elapsed = time_elapsed(start_time, frame_start);
+            u32 frame            = (u32)(time_secs(elapsed) * frames_per_second);
+            u8 hue_base          = (u8)(frame << 3);
+            u32 ink              = term_rgb(20, 20, 30);
 
             // Fast vertical gradient sweep
             for (u16 y = 0; y < height; ++y) {
@@ -79,7 +81,16 @@ int kmain(int argc, char** argv) {
             }
 
             term_fb_present();
-            frame++;
+
+            TimeDuration frame_time = time_elapsed(frame_start, time_now());
+            if (frame_time < target_frame_duration) {
+                TimeDuration remaining = target_frame_duration - frame_time;
+                u32 sleep_ms =
+                    (u32)time_duration_to_ms(remaining);
+                if (sleep_ms > 0) {
+                    time_sleep_ms(sleep_ms);
+                }
+            }
         } break;
         case TERM_EVENT_KEY:
             prn("Key pressed: %c", event.key);
