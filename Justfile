@@ -10,7 +10,7 @@ run *args: build
 clean:
     @rm -rf _*
 
-test *args:
+test *args: build
     @./test.sh {{args}}
 
 
