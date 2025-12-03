@@ -156,6 +156,8 @@
 #define global_variable static
 #define local_persist static
 
+#define KORE_UNUSED(x) (void)(x)
+
 #define KORE_KB(x) ((x) * 1024ull)
 #define KORE_MB(x) (KORE_KB(x) * 1024ull)
 #define KORE_GB(x) (KORE_MB(x) * 1024ull)
