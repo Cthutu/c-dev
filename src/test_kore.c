@@ -844,6 +844,23 @@ TEST_CASE(array, push_pop) {
                    0); // count of elements (0 after popping all)
 }
 
+TEST_CASE(array, push_multiple) {
+    Array(int) arr = NULL;
+
+    array_push(arr, 1, 2, 3);
+    TEST_ASSERT_EQ(array_count(arr), 3);
+    TEST_ASSERT_EQ(arr[0], 1);
+    TEST_ASSERT_EQ(arr[1], 2);
+    TEST_ASSERT_EQ(arr[2], 3);
+
+    array_push(arr, 4, 5);
+    TEST_ASSERT_EQ(array_count(arr), 5);
+    TEST_ASSERT_EQ(arr[3], 4);
+    TEST_ASSERT_EQ(arr[4], 5);
+
+    array_free(arr);
+}
+
 TEST_CASE(array, requires) {
     Array(int) arr = NULL;
 
