@@ -138,6 +138,15 @@
         "Unsupported compiler for debug break. Please use GCC, Clang, or MSVC."
 #endif
 
+//
+// Standard includes
+//
+
+#if KORE_OS_WINDOWS
+#    define WIN32_LEAN_AND_MEAN
+#    include <windows.h>
+#endif // KORE_OS_WINDOWS
+
 //----------------------------------------------------------------------[Macros]
 
 #define internal static
@@ -242,7 +251,7 @@ array_maybe_grow(void* array, usize element_size, usize required_capacity);
 //-----------------------------------------------------------------------[Mutex]
 
 #if KORE_OS_WINDOWS
-typedef CriticalSection Mutex;
+typedef CRITICAL_SECTION Mutex;
 #elif KORE_OS_POSIX
 #    include <pthread.h>
 typedef pthread_mutex_t Mutex;
@@ -775,10 +784,10 @@ void eprn(cstr format, ...) {
 void kore_init(void) { mutex_init(&g_kore_output_mutex); }
 
 void kore_done(void) {
-    mutex_done(&g_kore_output_mutex);
 #    if KORE_DEBUG
     mem_print_leaks();
 #    endif // KORE_DEBUG
+    mutex_done(&g_kore_output_mutex);
 }
 
 //------------------------------------------------------------------------------
