@@ -1,22 +1,30 @@
 #define KORE_IMPLEMENTATION
 #include "kore.h"
+#include "term.h"
 #include <stdio.h>
 
 int main() {
-    Array(int) arr = nullptr;
     kore_init();
+    term_init();
 
-    prn("Capacity of array: %zu", array_capacity(arr));
-    array_push(arr, 10, 20, 42);
-    prn("Capacity of array: %zu", array_capacity(arr));
+    while (term_loop()) {
+        TermEvent event = term_poll_event();
 
-    prn("%d", array_pop(arr)); // Should print 42
-    prn("%d", array_pop(arr)); // Should print 20
-    prn("%d", array_pop(arr)); // Should print 10
-
-    prn("Size of array: %zu", array_count(arr));
-
-    array_free(arr);
+        switch (event.kind) {
+        case TERM_EVENT_NONE:
+            // No event to process
+            break;
+        case TERM_EVENT_KEY:
+            prn("Key pressed: %c", event.key);
+            if (event.key == 'q') {
+                term_done();
+            }
+            break;
+        case TERM_EVENT_RESIZE:
+            prn("Terminal resized: %dx%d", event.size.width, event.size.height);
+            break;
+        }
+    }
 
     kore_done();
 }
