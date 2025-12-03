@@ -9,6 +9,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 //------------------------------------------------------------------------------
 // INDEX
@@ -229,10 +230,17 @@ static void* array_maybe_grow(void* array,
                               cstr file,
                               int line);
 
-#define array_push(a, value)                                                   \
-    ((a) = array_maybe_grow(                                                   \
-         (a), sizeof(*(a)), array_count(a) + 1, __FILE__, __LINE__),           \
-     (a)[__array_count(a)++] = (value))
+#define array_push(a, ...)                                                     \
+    do {                                                                       \
+        typeof(*(a)) __array_tmp[] = { __VA_ARGS__ };                          \
+        usize __array_n = sizeof(__array_tmp) / sizeof(__array_tmp[0]);        \
+        (a) = array_maybe_grow(                                                \
+            (a), sizeof(*(a)), array_count(a) + __array_n, __FILE__, __LINE__); \
+        memcpy((a) + __array_count(a),                                         \
+               __array_tmp,                                                    \
+               __array_n * sizeof(*(a)));                                      \
+        __array_count(a) += __array_n;                                         \
+    } while (0)
 
 #define array_pop(a) ((a)[__array_count(a)-- - 1])
 
