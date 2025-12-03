@@ -222,6 +222,12 @@ usize mem_get_total_allocated(void);
 #define KORE_REALLOC(ptr, size) mem_realloc((ptr), (size), __FILE__, __LINE__)
 #define KORE_FREE(ptr) ptr = mem_free((ptr), __FILE__, __LINE__), (ptr) = NULL
 
+#define KORE_ARRAY_ALLOC(type, count)                                          \
+    (type*)mem_alloc(sizeof(type) * (count), __FILE__, __LINE__)
+#define KORE_ARRAY_REALLOC(ptr, type, count)                                   \
+    (type*)mem_realloc((ptr), sizeof(type) * (count), __FILE__, __LINE__)
+#define KORE_ARRAY_FREE(ptr) KORE_FREE(ptr)
+
 void mem_break_on_alloc(u64 index);
 
 //------------------------------------------------------------------------------[Array]
@@ -278,9 +284,24 @@ static void* array_maybe_grow(void* array,
         }                                                                      \
     } while (0)
 
+#define array_delete(a, index)                                                 \
+    do {                                                                       \
+        usize __array_index = (index);                                         \
+        if (__array_index < array_count(a)) {                                  \
+            memmove(&(a)[__array_index],                                       \
+                    &(a)[__array_index + 1],                                   \
+                    (array_count(a) - __array_index - 1) * sizeof(*(a)));      \
+            __array_count(a)--;                                                \
+        }                                                                      \
+    } while (0)
+
 #define array_requires(a, required_capacity)                                   \
     (a) = (typeof(*(a))*)array_maybe_grow(                                     \
         (a), sizeof(*(a)), (required_capacity), __FILE__, __LINE__)
+
+#define array_reserve(a, required_size)                                        \
+    (a) = (typeof(*(a))*)array_maybe_grow(                                     \
+        (a), sizeof(*(a)), (required_size), __FILE__, __LINE__)
 
 #define array_leak(a) mem_leak(__array_info(a))
 
