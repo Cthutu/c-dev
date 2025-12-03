@@ -198,11 +198,6 @@ typedef double f64; // 64-bit floating point
 
 typedef const char* cstr; // Constant string type
 
-//------------------------------------------------------------------------------[Library]
-
-void kore_init(void);
-void kore_done(void);
-
 //------------------------------------------------------------------------------[Memory]
 
 void* mem_alloc(usize size, const char* file, int line);
@@ -1303,13 +1298,28 @@ TimeDuration time_from_ns(u64 nanoseconds) { return nanoseconds; }
 
 //------------------------------------------------------------------------------[Library]
 
-void kore_init(void) { mutex_init(&g_kore_output_mutex); }
+int kmain(int argc, char** argv);
 
-void kore_done(void) {
-#    if KORE_DEBUG
+int main(int argc, char** argv) {
+    mutex_init(&g_kore_output_mutex);
+
+#    if KORE_OS_WINDOWS
+    UINT old_cp = GetConsoleCP();
+    SetConsoleCP(CP_UTF8);
+    UINT old_output_cp = GetConsoleOutputCP();
+    SetConsoleOutputCP(CP_UTF8);
+#    endif // KORE_OS_WINDOWS
+
+    int result = kmain(argc, argv);
+
+#    if KORE_OS_WINDOWS
+    SetConsoleCP(old_cp);
+    SetConsoleOutputCP(old_output_cp);
+#    endif // KORE_OS_WINDOWS
+
     mem_print_leaks();
-#    endif // KORE_DEBUG
     mutex_done(&g_kore_output_mutex);
+    return result;
 }
 
 //------------------------------------------------------------------------------

@@ -3,14 +3,19 @@
 #include "term.h"
 #include <stdio.h>
 
-int main() {
-    kore_init();
+int kmain(int argc, char** argv) {
+    KORE_UNUSED(argc);
+    KORE_UNUSED(argv);
+
     term_init();
 
     TermSize fb_size = term_size_get();
-    u32 frame        = 0;
+    TimePoint start_time = time_now();
+    const TimeDuration target_frame_duration = time_from_ms(16);
+    const f64 frames_per_second              = 60.0;
 
     while (term_loop()) {
+        TimePoint frame_start = time_now();
         TermEvent event = term_poll_event();
 
         switch (event.kind) {
@@ -89,5 +94,5 @@ int main() {
         }
     }
 
-    kore_done();
+    return 0;
 }
