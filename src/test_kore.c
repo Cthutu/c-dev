@@ -878,6 +878,72 @@ TEST_CASE(array, requires) {
     array_free(arr);
 }
 
+TEST_CASE(arena, allocation_and_restore) {
+    Arena arena;
+    arena_init(&arena, .reserved_size = KORE_KB(64), .grow_rate = 1);
+
+    void* p1 = arena_alloc(&arena, 24);
+    TEST_ASSERT_NOT_NULL(p1);
+    TEST_ASSERT_EQ(arena_offset(&arena, p1), 0);
+    TEST_ASSERT_EQ(arena.cursor, 24);
+
+    arena_align(&arena, 16);
+    TEST_ASSERT_EQ(arena.cursor, KORE_ALIGN_UP(24, 16));
+
+    void* p2 = arena_alloc_align(&arena, 8, 16);
+    TEST_ASSERT_NOT_NULL(p2);
+    TEST_ASSERT_EQ(((usize)p2 % 16), 0);
+    TEST_ASSERT_EQ(arena_offset(&arena, p2), KORE_ALIGN_UP(24, 16));
+
+    void* mark = arena_store(&arena);
+    void* p3   = arena_alloc(&arena, 10);
+    TEST_ASSERT_EQ(arena_offset(&arena, p3), arena_offset(&arena, mark));
+    TEST_ASSERT_EQ(arena.cursor, arena_offset(&arena, mark) + 10);
+
+    arena_restore(&arena, mark);
+    TEST_ASSERT_EQ(arena.cursor, (usize)((u8*)mark - arena.memory));
+
+    void* p4 = arena_alloc(&arena, 5);
+    TEST_ASSERT_EQ(p4, mark);
+    TEST_ASSERT_EQ(arena.cursor, arena_offset(&arena, mark) + 5);
+
+    arena_done(&arena);
+}
+
+TEST_CASE(arena_session, alloc_and_undo) {
+    Arena arena;
+    arena_init(&arena, .reserved_size = KORE_KB(64), .grow_rate = 1);
+
+    ArenaSession session;
+    arena_session_init(&session, &arena, 8, sizeof(u64));
+
+    u64* values = (u64*)arena_session_alloc(&session, 3);
+    TEST_ASSERT_NOT_NULL(values);
+    values[0] = 1;
+    values[1] = 2;
+    values[2] = 3;
+
+    TEST_ASSERT_EQ(arena_session_count(&session), 3);
+    TEST_ASSERT_EQ(arena_session_address(&session), values);
+    TEST_ASSERT_EQ(((usize)values % 8), 0);
+
+    u64* more = (u64*)arena_session_alloc(&session, 2);
+    TEST_ASSERT_NOT_NULL(more);
+    TEST_ASSERT_EQ(more, values + 3);
+    TEST_ASSERT_EQ(arena_session_count(&session), 5);
+    TEST_ASSERT_EQ(((usize)more % 8), 0);
+
+    arena_session_undo(&session);
+    TEST_ASSERT_EQ(arena_session_count(&session), 0);
+    TEST_ASSERT_EQ(arena.cursor, 0);
+
+    u64* reuse = (u64*)arena_session_alloc(&session, 1);
+    TEST_ASSERT_EQ(reuse, values);
+    TEST_ASSERT_EQ(arena_session_count(&session), 1);
+
+    arena_done(&arena);
+}
+
 TEST_SUITE_BEGIN()
 RUN_ALL_TESTS();
 TEST_SUITE_END()

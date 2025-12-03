@@ -22,10 +22,11 @@
 // [Array]              Dynamic array implementation
 // [Mutex]              Simple locking for resource protection
 // [Output]             Basic output to stdout and stderr
+// [Arena]              Memory management via arenas and paging
 //
 //------------------------------------------------------------------------------
 
-//----------------------------------------------------------------------[Config]
+//------------------------------------------------------------------------------[Config]
 
 #define YES (1)
 #define NO (0)
@@ -283,7 +284,81 @@ static void* array_maybe_grow(void* array,
 
 #define array_leak(a) mem_leak(__array_info(a))
 
-//-----------------------------------------------------------------------[Mutex]
+//------------------------------------------------------------------------------[Arena]
+
+#define KORE_ARENA_DEFAULT_NUM_PAGES_GROW 16
+
+// OS-based arena with reserved memory pages
+typedef struct {
+    u8* memory;           // Base pointer to arena - never changes
+    usize cursor;         // Current allocation cursor
+    usize committed_size; // Number of bytes currently committed
+    usize reserved_size;  // Total number of bytes reserved (maximum capacity)
+    usize alloc_granularity; // OS allocation granularity (page size)
+    usize grow_rate;         // Number of pages to grow by when expanding
+} Arena;
+
+// Used to build arrays within an arena
+typedef struct {
+    Arena* arena;       // Arena being used
+    usize count;        // Number of elements currently in array
+    usize alignment;    // Alignment of each element
+    usize element_size; // Size of each element
+    void* start;        // Start of the array in the arena
+} ArenaSession;
+
+//
+// Arena Lifetime
+//
+
+typedef struct {
+    usize reserved_size;
+    usize grow_rate;
+} ArenaDefaultParams;
+
+void _arena_init(Arena* arena, ArenaDefaultParams params);
+
+#define arena_init(arena, ...)                                                 \
+    _arena_init((arena), (ArenaDefaultParams){__VA_ARGS__})
+
+void arena_done(Arena* arena);
+
+//
+// Arena allocation
+//
+
+void* arena_alloc(Arena* arena, usize size);
+void arena_align(Arena* arena, usize align);
+void* arena_alloc_align(Arena* arena, usize size, usize align);
+
+//
+// Arena marks
+//
+
+void* arena_store(Arena* arena);
+void arena_restore(Arena* arena, void* mark);
+
+//
+// Arena state
+//
+
+u32 arena_offset(Arena* arena, void* p);
+
+//
+// Arena sessions
+//
+
+void arena_session_init(ArenaSession* session,
+                        Arena* arena,
+                        usize alignment,
+                        usize element_size);
+void arena_session_undo(ArenaSession* session);
+
+void* arena_session_alloc(ArenaSession* session, usize count);
+usize arena_session_count(ArenaSession* session);
+void* arena_session_address(ArenaSession* session);
+
+//------------------------------------------------------------------------------[Mutex]
 
 #if KORE_OS_WINDOWS
 typedef CRITICAL_SECTION Mutex;
@@ -392,19 +467,21 @@ void eprn(const char* format, ...);
 
 #if defined(KORE_IMPLEMENTATION)
 
+#    include <memory.h>
 #    include <stdio.h>
 #    include <stdlib.h>
 #    include <threads.h>
 
 #    if KORE_OS_POSIX
+#        include <sys/mman.h>
 #        include <unistd.h>
 #    endif // KORE_OS_POSIX
 
-//---------------------------------------------------------------------[Globals]
+//------------------------------------------------------------------------------[Globals]
 
 Mutex g_kore_output_mutex;
 
-//----------------------------------------------------------------------[Memory]
+//------------------------------------------------------------------------------[Memory]
 
 typedef struct KMemoryHeader_t {
     usize size; // Number of bytes allocated
@@ -709,7 +786,197 @@ static void* array_maybe_grow(void* array,
     return (void*)(new_header + 1);
 }
 
-//-----------------------------------------------------------------------[Mutex]
+//------------------------------------------------------------------------------[Arena]
+
+typedef struct {
+    usize alloc_granularity;
+    usize reserve_granularity;
+} ArenaMemoryInfo;
+
+internal ArenaMemoryInfo get_arena_memory_info(void) {
+#    if KORE_OS_WINDOWS
+    SYSTEM_INFO sys_info;
+    GetSystemInfo(&sys_info);
+    return (ArenaMemoryInfo){
+        .alloc_granularity   = (usize)sys_info.dwPageSize,
+        .reserve_granularity = (usize)sys_info.dwAllocationGranularity,
+    };
+#    elif KORE_OS_POSIX
+    usize page_size = (usize)sysconf(_SC_PAGESIZE);
+    return (ArenaMemoryInfo){
+        .alloc_granularity   = page_size,
+        .reserve_granularity = page_size,
+    };
+#    else
+#        error "Arena memory info not implemented for this OS."
+#    endif
+}
+
+void _arena_init(Arena* arena, ArenaDefaultParams params) {
+    ArenaMemoryInfo mem_info = get_arena_memory_info();
+
+    if (params.grow_rate == 0) {
+        params.grow_rate = KORE_ARENA_DEFAULT_NUM_PAGES_GROW;
+    }
+    if (params.reserved_size == 0) {
+        params.reserved_size = KORE_GB(4);
+    }
+
+    params.reserved_size =
+        KORE_ALIGN_UP(params.reserved_size, mem_info.reserve_granularity);
+    usize initial_alloc_size = mem_info.alloc_granularity * params.grow_rate;
+
+    KORE_ASSERT(params.reserved_size >= initial_alloc_size,
+                "Arena reserved size must be at least %zu bytes",
+                initial_alloc_size);
+
+#    if KORE_OS_WINDOWS
+    // Reserve the full range.
+    u8* memory = (u8*)VirtualAlloc(nullptr,
+                                   params.reserved_size,
+                                   MEM_RESERVE | MEM_COMMIT,
+                                   PAGE_READWRITE);
+
+    // Allocate the first block.
+    mem_check(
+        VirtualAlloc(memory, initial_alloc_size, MEM_COMMIT, PAGE_READWRITE));
+
+#    elif KORE_OS_POSIX
+    // Reserve the full range.
+    u8* memory = (u8*)mmap(nullptr,
+                           params.reserved_size,
+                           PROT_NONE,
+                           MAP_PRIVATE | MAP_ANONYMOUS,
+                           -1,
+                           0);
+    mem_check(memory);
+
+    // Allocate the first block.
+    if (mprotect(memory, initial_alloc_size, PROT_READ | PROT_WRITE) != 0) {
+        perror("mprotect");
+        exit(1);
+    }
+#    else
+#        error "Arena creation not implemented for this OS."
+#    endif // KORE_OS_WINDOWS
+
+    arena->memory            = memory;
+    arena->cursor            = 0;
+    arena->committed_size    = initial_alloc_size;
+    arena->reserved_size     = params.reserved_size;
+    arena->alloc_granularity = mem_info.alloc_granularity;
+    arena->grow_rate         = params.grow_rate;
+}
+
+void arena_done(Arena* arena) {
+#    if KORE_OS_WINDOWS
+    VirtualFree(arena->memory, 0, MEM_RELEASE);
+#    elif KORE_OS_POSIX
+    munmap(arena->memory, arena->reserved_size);
+#    else
+#        error "Arena destruction not implemented for this OS."
+#    endif // KORE_OS_WINDOWS
+
+    memset(arena, 0, sizeof(Arena));
+}
+
+internal void _arena_ensure_room(Arena* arena, usize size) {
+    usize new_cursor = arena->cursor + size;
+    if (new_cursor > arena->reserved_size) {
+        eprn("Arena overflow: requested %zu bytes, but only %zu bytes "
+             "available.",
+             new_cursor,
+             arena->reserved_size - arena->cursor);
+        exit(1);
+    }
+
+    if (new_cursor > arena->committed_size) {
+        // Need to commit more memory.
+        usize commit_size =
+            KORE_ALIGN_UP(new_cursor - arena->committed_size,
+                          arena->alloc_granularity * arena->grow_rate);
+
+#    if KORE_OS_WINDOWS
+        mem_check(VirtualAlloc(arena->memory + arena->committed_size,
+                               commit_size,
+                               MEM_COMMIT,
+                               PAGE_READWRITE));
+#    elif KORE_OS_POSIX
+        if (mprotect(arena->memory + arena->committed_size,
+                     commit_size,
+                     PROT_READ | PROT_WRITE) != 0) {
+            perror("mprotect");
+            exit(1);
+        }
+#    else
+#        error "Arena memory commit not implemented for this OS."
+#    endif // KORE_OS_WINDOWS
+
+        arena->committed_size += commit_size;
+    }
+}
+
+void* arena_alloc(Arena* arena, usize size) {
+    _arena_ensure_room(arena, size);
+
+    void* ptr = arena->memory + arena->cursor;
+    arena->cursor += size;
+    return ptr;
+}
+
+void arena_align(Arena* arena, usize align) {
+    usize aligned_cursor = KORE_ALIGN_UP(arena->cursor, align);
+    _arena_ensure_room(arena, aligned_cursor - arena->cursor);
+    arena->cursor = aligned_cursor;
+}
+
+void* arena_alloc_align(Arena* arena, usize size, usize align) {
+    arena_align(arena, align);
+    return arena_alloc(arena, size);
+}
+
+void* arena_store(Arena* arena) { return arena->memory + arena->cursor; }
+
+void arena_restore(Arena* arena, void* mark) {
+    usize offset = (usize)((u8*)mark - arena->memory);
+    KORE_ASSERT(offset <= arena->cursor, "Invalid arena restore point.");
+    arena->cursor = offset;
+}
+
+u32 arena_offset(Arena* arena, void* p) {
+    return (u32)((u8*)p - arena->memory);
+}
+
+//------------------------------------------------------------------------------
+
+void arena_session_init(ArenaSession* session,
+                        Arena* arena,
+                        usize alignment,
+                        usize element_size) {
+    session->arena        = arena;
+    session->count        = 0;
+    session->alignment    = alignment;
+    session->element_size = element_size;
+    session->start        = arena_store(arena);
+}
+
+void arena_session_undo(ArenaSession* session) {
+    arena_restore(session->arena, session->start);
+    session->count = 0;
+}
+
+void* arena_session_alloc(ArenaSession* session, usize count) {
+    void* ptr = arena_alloc_align(
+        session->arena, count * session->element_size, session->alignment);
+    session->count += count;
+    return ptr;
+}
+
+usize arena_session_count(ArenaSession* session) { return session->count; }
+
+void* arena_session_address(ArenaSession* session) { return session->start; }
+
+//------------------------------------------------------------------------------[Mutex]
 
 #    if KORE_OS_WINDOWS
 
