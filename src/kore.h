@@ -524,6 +524,7 @@ TimeDuration time_from_ns(u64 nanoseconds);
 
 #    if KORE_OS_POSIX
 #        include <sys/mman.h>
+#        include <time.h>
 #        include <unistd.h>
 #    endif // KORE_OS_POSIX
 
