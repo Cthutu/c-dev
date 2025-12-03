@@ -1281,31 +1281,21 @@ u64 time_duration_to_secs(TimeDuration duration) {
     return duration / 1000000000ull;
 }
 
-u64 time_duration_to_ms(TimeDuration duration) {
-    return duration / 1000000ull;
-}
+u64 time_duration_to_ms(TimeDuration duration) { return duration / 1000000ull; }
 
-u64 time_duration_to_us(TimeDuration duration) {
-    return duration / 1000ull;
-}
+u64 time_duration_to_us(TimeDuration duration) { return duration / 1000ull; }
 
 u64 time_duration_to_ns(TimeDuration duration) { return duration; }
 
-f64 time_secs(TimeDuration duration) {
-    return (f64)duration / 1000000000.0;
-}
+f64 time_secs(TimeDuration duration) { return (f64)duration / 1000000000.0; }
 
-TimeDuration time_from_secs(u64 seconds) {
-    return seconds * 1000000000ull;
-}
+TimeDuration time_from_secs(u64 seconds) { return seconds * 1000000000ull; }
 
 TimeDuration time_from_ms(u64 milliseconds) {
     return milliseconds * 1000000ull;
 }
 
-TimeDuration time_from_us(u64 microseconds) {
-    return microseconds * 1000ull;
-}
+TimeDuration time_from_us(u64 microseconds) { return microseconds * 1000ull; }
 
 TimeDuration time_from_ns(u64 nanoseconds) { return nanoseconds; }
 
