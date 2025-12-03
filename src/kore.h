@@ -23,6 +23,7 @@
 // [Mutex]              Simple locking for resource protection
 // [Output]             Basic output to stdout and stderr
 // [Arena]              Memory management via arenas and paging
+// [Time]               Various cross-platform functions for handling time
 //
 //------------------------------------------------------------------------------
 
