@@ -844,6 +844,23 @@ TEST_CASE(array, push_pop) {
                    0); // count of elements (0 after popping all)
 }
 
+TEST_CASE(array, requires) {
+    Array(int) arr = NULL;
+
+    array_requires(arr, 15); // Ensure capacity for at least 15 elements
+
+    TEST_ASSERT_GE(array_capacity(arr), 15);
+
+    for (int i = 0; i < 15; i++) {
+        array_push(arr, i);
+    }
+
+    TEST_ASSERT_EQ(array_count(arr), 15);
+
+    // Clean up
+    array_free(arr);
+}
+
 TEST_SUITE_BEGIN()
 RUN_ALL_TESTS();
 TEST_SUITE_END()
