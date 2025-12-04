@@ -618,7 +618,7 @@ void term_init(void) {
     g_term.running     = true;
     g_term.initialised = true;
 
-    arena_init(&g_term_arena, .reserved_size = KORE_KB(128), .grow_rate = 1);
+    arena_init(&g_term_arena, .reserved_size = KORE_MB(128), .grow_rate = 1);
 
     _term_start();
 }
