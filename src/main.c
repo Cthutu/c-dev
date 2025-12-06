@@ -1,60 +1,34 @@
 #define KORE_IMPLEMENTATION
+#include "frame.h"
 #include "kore.h"
-#include "matrix.h"
-#include "term.h"
 
 int kmain(int argc, char** argv) {
     KORE_UNUSED(argc);
     KORE_UNUSED(argv);
 
-    term_init();
+    Frame main_frame  = frame_open(800, 600, "Kore Frame Example");
 
-    TermSize fb_size = {0};
-    Matrix matrix    = {0};
-    matrix_init(&matrix);
-
-    const TimeDuration target_frame_duration = time_from_ms(16);
-
-    while (term_loop()) {
-        TimePoint frame_start = time_now();
-        TermEvent event       = term_poll_event();
-
-        switch (event.kind) {
-        case TERM_EVENT_NONE: {
-            if (fb_size.width == 0 || fb_size.height == 0) {
-                fb_size = term_size_get();
-            }
-
-            if (fb_size.width == 0 || fb_size.height == 0) {
-                break;
-            }
-
-            matrix_render(&matrix, fb_size, frame_start);
-            term_fb_present();
-
-            TimeDuration frame_time = time_elapsed(frame_start, time_now());
-            if (frame_time < target_frame_duration) {
-                TimeDuration remaining = target_frame_duration - frame_time;
-                u32 sleep_ms           = (u32)time_duration_to_ms(remaining);
-                if (sleep_ms > 0) {
-                    time_sleep_ms(sleep_ms);
-                }
-            }
-        } break;
-        case TERM_EVENT_KEY:
-            prn("Key pressed: %c", event.key);
-            if (event.key == 'q') {
-                term_done();
-            }
-            break;
-        case TERM_EVENT_RESIZE:
-            prn("Terminal resized: %dx%d", event.size.width, event.size.height);
-            fb_size = event.size;
-            break;
-        }
+    u32* layer_pixels = frame_add_pixels_layer(&main_frame, 800, 600);
+    if (!layer_pixels) {
+        eprn("Failed to add pixel layer to frame");
+        return 1;
     }
 
-    matrix_shutdown(&matrix);
+    // Main loop
+    while (frame_loop(&main_frame)) {
+        // Update pixel data (simple color fill for demonstration)
+        for (int y = 0; y < 600; ++y) {
+            for (int x = 0; x < 800; ++x) {
+                layer_pixels[y * 800 + x] = 0xFF0000FF; // ARGB: opaque blue
+            }
+        }
+
+        // Optionally print FPS
+        // f64 fps = frame_fps(&main_frame);
+        // eprn("Current FPS: %.2f", fps); // Uncomment to see FPS in console
+    }
+
+    frame_free_pixels_layer(layer_pixels);
 
     return 0;
 }
