@@ -1117,12 +1117,27 @@ Frame frame_open(int width, int height, const char* title) {
 }
 
 bool frame_loop(Frame* f) {
+    if (g_frame_done) {
+        frame_cleanup(f);
+        return false;
+    }
+
     MSG msg;
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         if (msg.message == WM_QUIT) {
             frame_cleanup(f);
             return false;
         }
+
+        FrameEvent event = frame_translate_message(&msg);
+        if (event.type == FRAME_EVENT_RESIZE) {
+            f->width  = event.resize.width;
+            f->height = event.resize.height;
+        }
+        if (event.type != FRAME_EVENT_NONE) {
+            frame_event_enqueue(event);
+        }
+
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
@@ -1145,6 +1160,11 @@ bool frame_loop(Frame* f) {
     return true;
 }
 
+FrameEvent frame_poll_event(Frame* f) {
+    KORE_UNUSED(f);
+    return frame_event_dequeue();
+}
+
 //------------------------------------------------------------------------------
 
 #    else
@@ -1153,6 +1173,11 @@ bool frame_loop(Frame* f) {
 
 //------------------------------------------------------------------------------
 // Common frame functions
+
+void frame_done(Frame* f) {
+    KORE_UNUSED(f);
+    g_frame_done = true;
+}
 
 u32* frame_add_pixels_layer(Frame* f, int width, int height) {
     u32* pixels     = KORE_ARRAY_ALLOC(u32, width * height);
