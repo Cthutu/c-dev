@@ -4,7 +4,7 @@ A lightweight, header-only test framework for C with coloured output support usi
 
 ## Features
 
-- Header-only implementation (single file: `test.h`)
+- Header-only implementation (single file: `include/test/test.h`)
 - **Built-in test categories** for better organisation 
 - **Automatic test discovery** with `RUN_ALL_TESTS()` macro
 - **Command line filtering** by category or test name
@@ -21,7 +21,7 @@ A lightweight, header-only test framework for C with coloured output support usi
 1. Include the header in your test file:
 ```c
 #define TEST_IMPLEMENTATION  // Define this in exactly ONE source file
-#include "test.h"
+#include <test/test.h>
 ```
 
 2. Write test cases using the `TEST_CASE` macro with categories:
@@ -155,7 +155,7 @@ Define `TEST_VERBOSE` as `1` before including the header:
 ```c
 #define TEST_VERBOSE 1
 #define TEST_IMPLEMENTATION
-#include "test.h"
+#include <test/test.h>
 ```
 
 The environment variable takes precedence over the compile-time define if both are present.
@@ -190,7 +190,7 @@ Running test: edge_cases::division_failure
 
 ```c
 #define TEST_IMPLEMENTATION
-#include "test.h"
+#include <test/test.h>
 
 // Function to test
 int add(int a, int b) {

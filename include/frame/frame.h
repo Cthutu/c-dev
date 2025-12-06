@@ -8,8 +8,8 @@
 
 //------------------------------------------------------------------------------
 
-#include "gfx.h"
-#include "kore.h"
+#include <frame/gfx.h>
+#include <kore/kore.h>
 
 #if KORE_OS_LINUX
 #    include <GL/glx.h>

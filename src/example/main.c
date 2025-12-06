@@ -1,6 +1,6 @@
 #define KORE_IMPLEMENTATION
-#include "frame.h"
-#include "kore.h"
+#include <frame/frame.h>
+#include <kore/kore.h>
 #include <math.h>
 
 static inline u32 pack_rgba(f32 r, f32 g, f32 b) {

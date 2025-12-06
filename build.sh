@@ -7,81 +7,108 @@ GREEN='\033[0;32m'
 YELLOW='\033[0;33m'
 CYAN='\033[0;36m'
 
-# Set up the environment
-C_COMPILER="clang"
-DEFINES="-D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
-CFLAGS="-Wall -Wextra -Werror -g -std=c23 $DEFINES"
-SRC_DIR="src"
-LINKFLAGS=""
-
-case "$(uname -s)" in
-    Linux*)
-        EXE_NAME="hello"
-        LINKFLAGS="-lGL -lX11 -lXext -lm"
-        ;;
-    Darwin*)
-        EXE_NAME="hello"
-        LINKFLAGS="-framework OpenGL -framework Cocoa"
-        ;;
-    CYGWIN*|MINGW*|MSYS*)
-        EXE_NAME="hello.exe"
-        LINKFLAGS="-lopengl32 -lgdi32 -luser32"
-        ;;
-    *)          echo -e "${RED}Unsupported OS. Exiting.${RESET}"; exit 1;;
-esac
-
-# Check if the C compiler is installed
-if ! command -v $C_COMPILER &> /dev/null; then
-    echo -e "${RED}Error: $C_COMPILER is not installed.${RESET}"
+PROJECT="$1"
+if [ -z "$PROJECT" ]; then
+    echo -e "${RED}Usage: $0 <project>${RESET}"
     exit 1
 fi
 
-# Find all C source files in the source directory
-SRC_FILES=$(find $SRC_DIR -name "*.c")
+SRC_DIR_DEFAULT="src/${PROJECT}"
+ENV_PATH="${SRC_DIR_DEFAULT}/.env"
+
+DEFAULT_DEFINES="-D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
+DEFAULT_CFLAGS="-Wall -Wextra -Werror -g -std=c23"
+DEFAULT_LINKFLAGS=""
+DEFAULT_EXE_NAME="${PROJECT}"
+
+case "$(uname -s)" in
+    Linux*)
+        DEFAULT_LINKFLAGS="-lGL -lX11 -lXext -lm"
+        ;;
+    Darwin*)
+        DEFAULT_LINKFLAGS="-framework OpenGL -framework Cocoa"
+        ;;
+    CYGWIN*|MINGW*|MSYS*)
+        DEFAULT_EXE_NAME="${PROJECT}.exe"
+        DEFAULT_LINKFLAGS="-lopengl32 -lgdi32 -luser32"
+        ;;
+    *) echo -e "${RED}Unsupported OS. Exiting.${RESET}"; exit 1 ;;
+esac
+
+: "${C_COMPILER:=clang}"
+
+if [ -d "$ENV_PATH" ]; then
+    for ENV_FILE in "$ENV_PATH"/*; do
+        [ -f "$ENV_FILE" ] || continue
+        set -a
+        # shellcheck source=/dev/null
+        source "$ENV_FILE"
+        set +a
+    done
+elif [ -f "$ENV_PATH" ]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$ENV_PATH"
+    set +a
+fi
+
+: "${DEFINES:=$DEFAULT_DEFINES}"
+: "${CFLAGS:=$DEFAULT_CFLAGS}"
+: "${SRC_DIR:=$SRC_DIR_DEFAULT}"
+: "${LINKFLAGS:=$DEFAULT_LINKFLAGS}"
+: "${EXE_NAME:=$DEFAULT_EXE_NAME}"
+: "${INCLUDE_DIRS:=}"
+
+if ! command -v "$C_COMPILER" >/dev/null 2>&1; then
+    echo -e "${RED}Error: ${C_COMPILER} is not installed.${RESET}"
+    exit 1
+fi
+
+if [ ! -d "$SRC_DIR" ]; then
+    echo -e "${RED}Source directory not found: ${SRC_DIR}${RESET}"
+    exit 1
+fi
+
+SRC_FILES=$(find "$SRC_DIR" -type f -name "*.c" 2>/dev/null)
 if [ -z "$SRC_FILES" ]; then
     echo -e "${YELLOW}No C source files found in ${SRC_DIR}.${RESET}"
     exit 0
 fi
 
-# Compile each source file
-echo -e "${BOLD}Compiling C source files...${RESET}"
+OUTPUT_DIR="_bin"
+OBJECT_DIR="_obj/${PROJECT}"
+mkdir -p "$OUTPUT_DIR" "$OBJECT_DIR"
+
+COMPILE_FLAGS="$CFLAGS $DEFINES -Iinclude $INCLUDE_DIRS"
+
+echo -e "${BOLD}Compiling C source files for project '${PROJECT}'...${RESET}"
 for SRC_FILE in $SRC_FILES; do
-    # Get the base name of the source file (without the directory)
-    BASE_NAME=$(basename "$SRC_FILE" .c)
-    
-    # Create the output directory if it doesn't exist
-    OUTPUT_DIR="_bin"
-    OBJECT_DIR="_obj"
-    mkdir -p $OUTPUT_DIR $OBJECT_DIR
-    
-    # Skip files that start with "test"
-    if [[ $(basename "$SRC_FILE") == test* ]]; then
-        echo -e "${YELLOW}  [SKIPPED] $SRC_FILE (test file)${RESET}"
-        continue
-    fi
-    
-    # Compile the source file
+    REL_PATH=${SRC_FILE#"$SRC_DIR"/}
+    OBJ_PATH="${OBJECT_DIR}/${REL_PATH%.c}.o"
+    mkdir -p "$(dirname "$OBJ_PATH")"
+
     echo -e "${CYAN}  [COMPILE] $SRC_FILE...${RESET}"
-    $C_COMPILER -c $CFLAGS -o "$OBJECT_DIR/$BASE_NAME.o" "$SRC_FILE"
-    
-    # Check if the compilation was successful
-    if [ $? -ne 0 ]; then
+    if ! $C_COMPILER -c $COMPILE_FLAGS -o "$OBJ_PATH" "$SRC_FILE"; then
         echo -e "${RED}Error: Compilation failed for $SRC_FILE.${RESET}"
         exit 1
     fi
-    
 done
 echo -e "${GREEN}  Successfully compiled all source.${RESET}"
 
-# Link the object files into a single executable
+OBJECTS=$(find "$OBJECT_DIR" -name "*.o" -print)
+if [ -z "$OBJECTS" ]; then
+    echo -e "${RED}No object files produced; aborting link.${RESET}"
+    exit 1
+fi
+
 echo -e "${BOLD}Linking object files...${RESET}"
-LINKED_OUTPUT="$OUTPUT_DIR/$EXE_NAME"
+LINKED_OUTPUT="${OUTPUT_DIR}/${EXE_NAME}"
 echo -e "${CYAN}  [ LINK  ] Creating executable $LINKED_OUTPUT...${RESET}"
-$C_COMPILER $CFLAGS -o "$LINKED_OUTPUT" $OBJECT_DIR/*.o $LINKFLAGS
-if [ $? -ne 0 ]; then
+if ! $C_COMPILER $CFLAGS $DEFINES -Iinclude $INCLUDE_DIRS -o "$LINKED_OUTPUT" $OBJECTS $LINKFLAGS; then
     echo -e "${RED}Error: Linking failed.${RESET}"
     exit 1
 fi
+
 echo -e "${GREEN}  Successfully linked object files to $LINKED_OUTPUT.${RESET}"
 echo -e "${BOLD}Build completed successfully!${RESET}"
-echo -e "${YELLOW}  You can run the program using: ./$LINKED_OUTPUT${RESET}"
+echo -e "${YELLOW}  You can run the program using: ${LINKED_OUTPUT}${RESET}"

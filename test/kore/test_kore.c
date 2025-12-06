@@ -1,9 +1,9 @@
 #define TEST_IMPLEMENTATION
 #define KORE_IMPLEMENTATION
 
-#include "kore.h"
-#include "test.h"
+#include <kore/kore.h>
 #include <string.h>
+#include <test/test.h>
 
 TEST_CASE(memory, simple) {
     void* p = KORE_ALLOC(100);
@@ -842,6 +842,8 @@ TEST_CASE(array, push_pop) {
     TEST_ASSERT_EQ(array_size(arr), 0); // size in bytes (0 after popping all)
     TEST_ASSERT_EQ(array_count(arr),
                    0); // count of elements (0 after popping all)
+
+    array_free(arr);
 }
 
 TEST_CASE(array, push_multiple) {

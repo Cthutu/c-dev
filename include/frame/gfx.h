@@ -8,7 +8,7 @@
 
 //------------------------------------------------------------------------------
 
-#include "kore.h"
+#include <kore/kore.h>
 
 // Minimal immediate-mode style interface for layered RGBA buffers rendered via
 // OpenGL. Call gfx_init after creating an OpenGL context. Create one or more

@@ -284,7 +284,7 @@ typedef struct {
     } while (0)
 
 #define TEST_SUITE_BEGIN()                                                     \
-    int main(int argc, char* argv[]) {                                         \
+    int kmain(int argc, char* argv[]) {                                        \
         TestOptions options = {0};                                             \
         test_parse_args(argc, argv, &options);                                 \
         if (options.help_requested) {                                          \
