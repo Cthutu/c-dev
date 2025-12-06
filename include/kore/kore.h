@@ -24,6 +24,7 @@
 // [Output]             Basic output to stdout and stderr
 // [Arena]              Memory management via arenas and paging
 // [Time]               Various cross-platform functions for handling time
+// [Random]             Some simple routines for random number generation
 //
 //------------------------------------------------------------------------------
 
@@ -506,6 +507,13 @@ TimeDuration time_from_ms(u64 milliseconds);
 TimeDuration time_from_us(u64 microseconds);
 TimeDuration time_from_ns(u64 nanoseconds);
 
+//------------------------------------------------------------------------------[Random]
+
+void random_seed(u64 seed);
+u64 random_u64(void);
+u64 random_range_u64(u64 min, u64 max);
+i64 random_range_i64(i64 min, i64 max);
+
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
 // I M P L E M E N T A T I O N
@@ -528,6 +536,7 @@ TimeDuration time_from_ns(u64 nanoseconds);
 //------------------------------------------------------------------------------[Globals]
 
 Mutex g_kore_output_mutex;
+static u64 g_random_state = 0;
 
 //------------------------------------------------------------------------------[Memory]
 
@@ -1295,6 +1304,42 @@ TimeDuration time_from_us(u64 microseconds) { return microseconds * 1000ull; }
 TimeDuration time_from_ns(u64 nanoseconds) { return nanoseconds; }
 
 #    endif // KORE_OS_WINDOWS
+
+//------------------------------------------------------------------------------[Random]
+
+static inline u64 random_step(void) {
+    if (g_random_state == 0) {
+        random_seed(time_now() | 1ull);
+    }
+
+    u64 x = g_random_state;
+    x ^= x >> 12;
+    x ^= x << 25;
+    x ^= x >> 27;
+    g_random_state = x;
+    return x * 0x2545F4914F6CDD1Dull;
+}
+
+void random_seed(u64 seed) {
+    if (seed == 0) {
+        seed = 0x9e3779b97f4a7c15ull;
+    }
+    g_random_state = seed;
+}
+
+u64 random_u64(void) { return random_step(); }
+
+u64 random_range_u64(u64 min, u64 max) {
+    KORE_ASSERT(min <= max, "random_range_u64: min must be <= max");
+    u64 span = max - min + 1ull;
+    return min + (random_step() % span);
+}
+
+i64 random_range_i64(i64 min, i64 max) {
+    KORE_ASSERT(min <= max, "random_range_i64: min must be <= max");
+    u64 span = (u64)(max - min) + 1ull;
+    return min + (i64)(random_step() % span);
+}
 
 //------------------------------------------------------------------------------[Library]
 
