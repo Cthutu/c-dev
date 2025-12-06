@@ -49,14 +49,186 @@ typedef struct {
 //------------------------------------------------------------------------------
 
 Frame frame_open(int width, int height, cstr title);
-bool frame_loop(Frame* w);
+bool frame_loop(Frame* f);
+void frame_done(Frame* f);
 u32* frame_add_pixels_layer(Frame* w, int width, int height);
-f64 frame_fps(Frame* w);
+f64 frame_fps(Frame* f);
 
 //------------------------------------------------------------------------------
 // Clean up API
 
 void frame_free_pixels_layer(u32* pixels);
+
+//------------------------------------------------------------------------------
+// Event system
+
+typedef enum {
+    FRAME_KEY_UNKNOWN       = -1,
+
+    // Printable keys map to ASCII values for direct comparisons
+    FRAME_KEY_SPACE         = 32,
+    FRAME_KEY_APOSTROPHE    = 39, // '
+    FRAME_KEY_COMMA         = 44,
+    FRAME_KEY_MINUS         = 45,
+    FRAME_KEY_PERIOD        = 46,
+    FRAME_KEY_SLASH         = 47,
+    FRAME_KEY_0             = 48,
+    FRAME_KEY_1             = 49,
+    FRAME_KEY_2             = 50,
+    FRAME_KEY_3             = 51,
+    FRAME_KEY_4             = 52,
+    FRAME_KEY_5             = 53,
+    FRAME_KEY_6             = 54,
+    FRAME_KEY_7             = 55,
+    FRAME_KEY_8             = 56,
+    FRAME_KEY_9             = 57,
+    FRAME_KEY_SEMICOLON     = 59,
+    FRAME_KEY_EQUAL         = 61,
+    FRAME_KEY_A             = 65,
+    FRAME_KEY_B             = 66,
+    FRAME_KEY_C             = 67,
+    FRAME_KEY_D             = 68,
+    FRAME_KEY_E             = 69,
+    FRAME_KEY_F             = 70,
+    FRAME_KEY_G             = 71,
+    FRAME_KEY_H             = 72,
+    FRAME_KEY_I             = 73,
+    FRAME_KEY_J             = 74,
+    FRAME_KEY_K             = 75,
+    FRAME_KEY_L             = 76,
+    FRAME_KEY_M             = 77,
+    FRAME_KEY_N             = 78,
+    FRAME_KEY_O             = 79,
+    FRAME_KEY_P             = 80,
+    FRAME_KEY_Q             = 81,
+    FRAME_KEY_R             = 82,
+    FRAME_KEY_S             = 83,
+    FRAME_KEY_T             = 84,
+    FRAME_KEY_U             = 85,
+    FRAME_KEY_V             = 86,
+    FRAME_KEY_W             = 87,
+    FRAME_KEY_X             = 88,
+    FRAME_KEY_Y             = 89,
+    FRAME_KEY_Z             = 90,
+    FRAME_KEY_LEFT_BRACKET  = 91,
+    FRAME_KEY_BACKSLASH     = 92,
+    FRAME_KEY_RIGHT_BRACKET = 93,
+    FRAME_KEY_GRAVE_ACCENT  = 96,
+    FRAME_KEY_WORLD_1       = 161, // Non-US #1
+    FRAME_KEY_WORLD_2       = 162, // Non-US #2
+
+    FRAME_KEY_ESCAPE        = 256,
+    FRAME_KEY_ENTER         = 257,
+    FRAME_KEY_TAB           = 258,
+
+    FRAME_KEY_BACKSPACE     = 259,
+    FRAME_KEY_INSERT        = 260,
+    FRAME_KEY_DELETE        = 261,
+    FRAME_KEY_RIGHT         = 262,
+    FRAME_KEY_LEFT          = 263,
+    FRAME_KEY_DOWN          = 264,
+    FRAME_KEY_UP            = 265,
+    FRAME_KEY_PAGE_UP       = 266,
+    FRAME_KEY_PAGE_DOWN     = 267,
+    FRAME_KEY_HOME          = 268,
+    FRAME_KEY_END           = 269,
+
+    FRAME_KEY_CAPS_LOCK     = 280,
+    FRAME_KEY_SCROLL_LOCK   = 281,
+    FRAME_KEY_NUM_LOCK      = 282,
+    FRAME_KEY_PRINT_SCREEN  = 283,
+    FRAME_KEY_PAUSE         = 284,
+
+    FRAME_KEY_F1            = 290,
+    FRAME_KEY_F2            = 291,
+    FRAME_KEY_F3            = 292,
+    FRAME_KEY_F4            = 293,
+    FRAME_KEY_F5            = 294,
+    FRAME_KEY_F6            = 295,
+    FRAME_KEY_F7            = 296,
+    FRAME_KEY_F8            = 297,
+    FRAME_KEY_F9            = 298,
+    FRAME_KEY_F10           = 299,
+    FRAME_KEY_F11           = 300,
+    FRAME_KEY_F12           = 301,
+    FRAME_KEY_F13           = 302,
+    FRAME_KEY_F14           = 303,
+    FRAME_KEY_F15           = 304,
+    FRAME_KEY_F16           = 305,
+    FRAME_KEY_F17           = 306,
+    FRAME_KEY_F18           = 307,
+    FRAME_KEY_F19           = 308,
+    FRAME_KEY_F20           = 309,
+    FRAME_KEY_F21           = 310,
+    FRAME_KEY_F22           = 311,
+    FRAME_KEY_F23           = 312,
+    FRAME_KEY_F24           = 313,
+    FRAME_KEY_F25           = 314,
+
+    FRAME_KEY_KP_0          = 320,
+    FRAME_KEY_KP_1          = 321,
+    FRAME_KEY_KP_2          = 322,
+    FRAME_KEY_KP_3          = 323,
+    FRAME_KEY_KP_4          = 324,
+    FRAME_KEY_KP_5          = 325,
+    FRAME_KEY_KP_6          = 326,
+    FRAME_KEY_KP_7          = 327,
+    FRAME_KEY_KP_8          = 328,
+    FRAME_KEY_KP_9          = 329,
+    FRAME_KEY_KP_DECIMAL    = 330,
+    FRAME_KEY_KP_DIVIDE     = 331,
+    FRAME_KEY_KP_MULTIPLY   = 332,
+    FRAME_KEY_KP_SUBTRACT   = 333,
+    FRAME_KEY_KP_ADD        = 334,
+    FRAME_KEY_KP_ENTER      = 335,
+    FRAME_KEY_KP_EQUAL      = 336,
+
+    FRAME_KEY_LEFT_SHIFT    = 340,
+    FRAME_KEY_LEFT_CONTROL  = 341,
+    FRAME_KEY_LEFT_ALT      = 342,
+    FRAME_KEY_LEFT_SUPER    = 343,
+    FRAME_KEY_RIGHT_SHIFT   = 344,
+    FRAME_KEY_RIGHT_CONTROL = 345,
+    FRAME_KEY_RIGHT_ALT     = 346,
+    FRAME_KEY_RIGHT_SUPER   = 347,
+    FRAME_KEY_MENU          = 348,
+} FrameKeyCode;
+
+typedef enum {
+    FRAME_EVENT_NONE,            // No event to process
+    FRAME_EVENT_KEYDOWN,         // Key was pressed down
+    FRAME_EVENT_KEYUP,           // Key was released
+    FRAME_EVENT_MOUSEMOVE,       // Mouse moved within the bounds of the window
+    FRAME_EVENT_MOUSEBUTTONDOWN, // A mouse button was pressed
+    FRAME_EVENT_MOUSEBUTTONUP,   // A mouse button was released
+    FRAME_EVENT_RESIZE,          // Window was resized
+    FRAME_EVENT_SUSPEND,         // Window was minimized or lost focus
+    FRAME_EVENT_RESUME,          // Window was restored or gained focus
+} FrameEventType;
+
+typedef struct {
+    FrameEventType type;
+    union {
+        struct {
+            int x;
+            int y;
+        } mouse_move;
+        struct {
+            int button;
+            int x;
+            int y;
+        } mouse_button;
+        struct {
+            FrameKeyCode keycode;
+        } key;
+        struct {
+            int width;
+            int height;
+        } resize;
+    };
+} FrameEvent;
+
+FrameEvent frame_poll_event(Frame* f);
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
