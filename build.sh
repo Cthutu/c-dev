@@ -12,11 +12,21 @@ C_COMPILER="clang"
 DEFINES="-D_POSIX_C_SOURCE=200809L -D_XOPEN_SOURCE=700 -D_GNU_SOURCE"
 CFLAGS="-Wall -Wextra -Werror -g -std=c23 $DEFINES"
 SRC_DIR="src"
+LINKFLAGS=""
 
 case "$(uname -s)" in
-    Linux*)     EXE_NAME="hello";;
-    Darwin*)    EXE_NAME="hello";;
-    CYGWIN*|MINGW*|MSYS*) EXE_NAME="hello.exe";;
+    Linux*)
+        EXE_NAME="hello"
+        LINKFLAGS="-lGL -lX11 -lXext -lm"
+        ;;
+    Darwin*)
+        EXE_NAME="hello"
+        LINKFLAGS="-framework OpenGL -framework Cocoa"
+        ;;
+    CYGWIN*|MINGW*|MSYS*)
+        EXE_NAME="hello.exe"
+        LINKFLAGS="-lopengl32 -lgdi32 -luser32"
+        ;;
     *)          echo -e "${RED}Unsupported OS. Exiting.${RESET}"; exit 1;;
 esac
 
@@ -67,7 +77,7 @@ echo -e "${GREEN}  Successfully compiled all source.${RESET}"
 echo -e "${BOLD}Linking object files...${RESET}"
 LINKED_OUTPUT="$OUTPUT_DIR/$EXE_NAME"
 echo -e "${CYAN}  [ LINK  ] Creating executable $LINKED_OUTPUT...${RESET}"
-$C_COMPILER $CFLAGS -o "$LINKED_OUTPUT" $OBJECT_DIR/*.o
+$C_COMPILER $CFLAGS -o "$LINKED_OUTPUT" $OBJECT_DIR/*.o $LINKFLAGS
 if [ $? -ne 0 ]; then
     echo -e "${RED}Error: Linking failed.${RESET}"
     exit 1
