@@ -252,11 +252,19 @@ typedef struct KArrayHeader_t {
 #define array_count(a) __array_safe((a), __array_count(a))
 
 // Forward declaration for internal array function
+#if KORE_COMPILER_CLANG || KORE_COMPILER_GCC
+static __attribute__((unused)) void* array_maybe_grow(void* array,
+                                                      usize element_size,
+                                                      usize required_capacity,
+                                                      cstr file,
+                                                      int line);
+#else
 static void* array_maybe_grow(void* array,
                               usize element_size,
                               usize required_capacity,
                               cstr file,
                               int line);
+#endif
 
 #define array_push(a, ...)                                                     \
     do {                                                                       \
