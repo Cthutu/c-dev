@@ -15,6 +15,7 @@
 #    include <GL/glx.h>
 #    include <X11/Xlib.h>
 #    include <X11/Xutil.h>
+#    include <X11/keysym.h>
 #endif // KORE_OS_LINUX
 
 //------------------------------------------------------------------------------
@@ -238,12 +239,202 @@ FrameEvent frame_poll_event(Frame* f);
 
 #ifdef KORE_IMPLEMENTATION
 
+global_variable bool g_frame_done = false;
+
 //------------------------------------------------------------------------------
 // Linux frame implementation
 
 #    if KORE_OS_LINUX
 
 global_variable Atom g_wm_delete_window = None;
+
+#        define FRAME_EVENT_QUEUE_CAPACITY 64
+
+typedef struct {
+    FrameEvent events[FRAME_EVENT_QUEUE_CAPACITY];
+    u32 head;
+    u32 tail;
+} FrameEventQueue;
+
+global_variable FrameEventQueue g_frame_event_queue = {0};
+
+internal inline void frame_event_enqueue(FrameEvent event) {
+    u32 next = (g_frame_event_queue.tail + 1) % FRAME_EVENT_QUEUE_CAPACITY;
+    if (next == g_frame_event_queue.head) {
+        g_frame_event_queue.head =
+            (g_frame_event_queue.head + 1) % FRAME_EVENT_QUEUE_CAPACITY;
+    }
+
+    g_frame_event_queue.events[g_frame_event_queue.tail] = event;
+    g_frame_event_queue.tail                             = next;
+}
+
+internal inline FrameEvent frame_event_dequeue(void) {
+    if (g_frame_event_queue.head == g_frame_event_queue.tail) {
+        return (FrameEvent){.type = FRAME_EVENT_NONE};
+    }
+
+    FrameEvent event = g_frame_event_queue.events[g_frame_event_queue.head];
+    g_frame_event_queue.head =
+        (g_frame_event_queue.head + 1) % FRAME_EVENT_QUEUE_CAPACITY;
+    return event;
+}
+
+internal FrameKeyCode frame_translate_keysym(KeySym sym) {
+    if (sym >= XK_a && sym <= XK_z) {
+        sym = sym - XK_a + XK_A;
+    }
+    if (sym >= XK_space && sym <= XK_asciitilde) {
+        return (FrameKeyCode)sym;
+    }
+
+    switch (sym) {
+    case XK_Escape:
+        return FRAME_KEY_ESCAPE;
+    case XK_Return:
+        return FRAME_KEY_ENTER;
+    case XK_Tab:
+        return FRAME_KEY_TAB;
+    case XK_BackSpace:
+        return FRAME_KEY_BACKSPACE;
+    case XK_Insert:
+        return FRAME_KEY_INSERT;
+    case XK_Delete:
+        return FRAME_KEY_DELETE;
+    case XK_Right:
+        return FRAME_KEY_RIGHT;
+    case XK_Left:
+        return FRAME_KEY_LEFT;
+    case XK_Down:
+        return FRAME_KEY_DOWN;
+    case XK_Up:
+        return FRAME_KEY_UP;
+    case XK_Page_Up:
+        return FRAME_KEY_PAGE_UP;
+    case XK_Page_Down:
+        return FRAME_KEY_PAGE_DOWN;
+    case XK_Home:
+        return FRAME_KEY_HOME;
+    case XK_End:
+        return FRAME_KEY_END;
+    case XK_Caps_Lock:
+        return FRAME_KEY_CAPS_LOCK;
+    case XK_Scroll_Lock:
+        return FRAME_KEY_SCROLL_LOCK;
+    case XK_Num_Lock:
+        return FRAME_KEY_NUM_LOCK;
+    case XK_Print:
+        return FRAME_KEY_PRINT_SCREEN;
+    case XK_Pause:
+        return FRAME_KEY_PAUSE;
+    case XK_F1:
+        return FRAME_KEY_F1;
+    case XK_F2:
+        return FRAME_KEY_F2;
+    case XK_F3:
+        return FRAME_KEY_F3;
+    case XK_F4:
+        return FRAME_KEY_F4;
+    case XK_F5:
+        return FRAME_KEY_F5;
+    case XK_F6:
+        return FRAME_KEY_F6;
+    case XK_F7:
+        return FRAME_KEY_F7;
+    case XK_F8:
+        return FRAME_KEY_F8;
+    case XK_F9:
+        return FRAME_KEY_F9;
+    case XK_F10:
+        return FRAME_KEY_F10;
+    case XK_F11:
+        return FRAME_KEY_F11;
+    case XK_F12:
+        return FRAME_KEY_F12;
+    case XK_F13:
+        return FRAME_KEY_F13;
+    case XK_F14:
+        return FRAME_KEY_F14;
+    case XK_F15:
+        return FRAME_KEY_F15;
+    case XK_F16:
+        return FRAME_KEY_F16;
+    case XK_F17:
+        return FRAME_KEY_F17;
+    case XK_F18:
+        return FRAME_KEY_F18;
+    case XK_F19:
+        return FRAME_KEY_F19;
+    case XK_F20:
+        return FRAME_KEY_F20;
+    case XK_F21:
+        return FRAME_KEY_F21;
+    case XK_F22:
+        return FRAME_KEY_F22;
+    case XK_F23:
+        return FRAME_KEY_F23;
+    case XK_F24:
+        return FRAME_KEY_F24;
+    case XK_F25:
+        return FRAME_KEY_F25;
+    case XK_KP_0:
+        return FRAME_KEY_KP_0;
+    case XK_KP_1:
+        return FRAME_KEY_KP_1;
+    case XK_KP_2:
+        return FRAME_KEY_KP_2;
+    case XK_KP_3:
+        return FRAME_KEY_KP_3;
+    case XK_KP_4:
+        return FRAME_KEY_KP_4;
+    case XK_KP_5:
+        return FRAME_KEY_KP_5;
+    case XK_KP_6:
+        return FRAME_KEY_KP_6;
+    case XK_KP_7:
+        return FRAME_KEY_KP_7;
+    case XK_KP_8:
+        return FRAME_KEY_KP_8;
+    case XK_KP_9:
+        return FRAME_KEY_KP_9;
+    case XK_KP_Decimal:
+        return FRAME_KEY_KP_DECIMAL;
+    case XK_KP_Divide:
+        return FRAME_KEY_KP_DIVIDE;
+    case XK_KP_Multiply:
+        return FRAME_KEY_KP_MULTIPLY;
+    case XK_KP_Subtract:
+        return FRAME_KEY_KP_SUBTRACT;
+    case XK_KP_Add:
+        return FRAME_KEY_KP_ADD;
+    case XK_KP_Enter:
+        return FRAME_KEY_KP_ENTER;
+    case XK_KP_Equal:
+        return FRAME_KEY_KP_EQUAL;
+    case XK_Shift_L:
+        return FRAME_KEY_LEFT_SHIFT;
+    case XK_Control_L:
+        return FRAME_KEY_LEFT_CONTROL;
+    case XK_Alt_L:
+        return FRAME_KEY_LEFT_ALT;
+    case XK_Super_L:
+        return FRAME_KEY_LEFT_SUPER;
+    case XK_Shift_R:
+        return FRAME_KEY_RIGHT_SHIFT;
+    case XK_Control_R:
+        return FRAME_KEY_RIGHT_CONTROL;
+    case XK_Alt_R:
+        return FRAME_KEY_RIGHT_ALT;
+    case XK_Super_R:
+        return FRAME_KEY_RIGHT_SUPER;
+    case XK_Menu:
+        return FRAME_KEY_MENU;
+    default:
+        break;
+    }
+
+    return FRAME_KEY_UNKNOWN;
+}
 
 internal void frame_cleanup(Frame* f) {
     if (!f) {
@@ -370,7 +561,8 @@ Frame frame_open(int width, int height, cstr title) {
     XSelectInput(f.display,
                  f.window,
                  ExposureMask | KeyPressMask | KeyReleaseMask |
-                     ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
+                     ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
+                     StructureNotifyMask | FocusChangeMask);
     g_wm_delete_window = XInternAtom(f.display, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(f.display, f.window, &g_wm_delete_window, 1);
 
@@ -402,6 +594,11 @@ Frame frame_open(int width, int height, cstr title) {
 }
 
 bool frame_loop(Frame* f) {
+    if (g_frame_done) {
+        frame_cleanup(f);
+        return false;
+    }
+
     XEvent event;
     bool running = true;
 
@@ -409,9 +606,6 @@ bool frame_loop(Frame* f) {
         XNextEvent(f->display, &event);
 
         switch (event.type) {
-        case Expose:
-            break;
-
         case ClientMessage:
             if ((Atom)event.xclient.data.l[0] == g_wm_delete_window) {
                 running = false;
@@ -422,14 +616,67 @@ bool frame_loop(Frame* f) {
             running = false;
             break;
 
-        case KeyPress:
-        case KeyRelease:
-            // TODO: Handle key events if needed
+        case KeyPress: {
+            FrameKeyCode keycode =
+                frame_translate_keysym(XLookupKeysym(&event.xkey, 0));
+            if (keycode != FRAME_KEY_UNKNOWN) {
+                frame_event_enqueue((FrameEvent){.type = FRAME_EVENT_KEYDOWN,
+                                                 .key.keycode = keycode});
+            }
+        } break;
 
-        case ButtonPress:
-        case ButtonRelease:
-        case MotionNotify:
-            // TODO: Handle mouse events if needed
+        case KeyRelease: {
+            FrameKeyCode keycode =
+                frame_translate_keysym(XLookupKeysym(&event.xkey, 0));
+            if (keycode != FRAME_KEY_UNKNOWN) {
+                frame_event_enqueue((FrameEvent){.type = FRAME_EVENT_KEYUP,
+                                                 .key.keycode = keycode});
+            }
+        } break;
+
+        case ButtonPress: {
+            FrameEvent evt          = {.type = FRAME_EVENT_MOUSEBUTTONDOWN};
+            evt.mouse_button.button = event.xbutton.button;
+            evt.mouse_button.x      = event.xbutton.x;
+            evt.mouse_button.y      = event.xbutton.y;
+            frame_event_enqueue(evt);
+        } break;
+
+        case ButtonRelease: {
+            FrameEvent evt          = {.type = FRAME_EVENT_MOUSEBUTTONUP};
+            evt.mouse_button.button = event.xbutton.button;
+            evt.mouse_button.x      = event.xbutton.x;
+            evt.mouse_button.y      = event.xbutton.y;
+            frame_event_enqueue(evt);
+        } break;
+
+        case MotionNotify: {
+            FrameEvent evt   = {.type = FRAME_EVENT_MOUSEMOVE};
+            evt.mouse_move.x = event.xmotion.x;
+            evt.mouse_move.y = event.xmotion.y;
+            frame_event_enqueue(evt);
+        } break;
+
+        case ConfigureNotify: {
+            if (event.xconfigure.width != f->width ||
+                event.xconfigure.height != f->height) {
+                f->width  = event.xconfigure.width;
+                f->height = event.xconfigure.height;
+                frame_event_enqueue((FrameEvent){
+                    .type          = FRAME_EVENT_RESIZE,
+                    .resize.width  = f->width,
+                    .resize.height = f->height,
+                });
+            }
+        } break;
+
+        case FocusOut:
+            frame_event_enqueue((FrameEvent){.type = FRAME_EVENT_SUSPEND});
+            break;
+
+        case FocusIn:
+            frame_event_enqueue((FrameEvent){.type = FRAME_EVENT_RESUME});
+            break;
 
         default:
             break;
@@ -450,10 +697,297 @@ bool frame_loop(Frame* f) {
     return true;
 }
 
+FrameEvent frame_poll_event(Frame* f) {
+    KORE_UNUSED(f);
+    return frame_event_dequeue();
+}
+
 //------------------------------------------------------------------------------
 // Windows implementation
 
 #    elif KORE_OS_WINDOWS
+
+#        define FRAME_EVENT_QUEUE_CAPACITY 64
+
+typedef struct {
+    FrameEvent events[FRAME_EVENT_QUEUE_CAPACITY];
+    u32 head;
+    u32 tail;
+} FrameEventQueue;
+
+global_variable FrameEventQueue g_frame_event_queue = {0};
+
+internal inline void frame_event_enqueue(FrameEvent event) {
+    u32 next = (g_frame_event_queue.tail + 1) % FRAME_EVENT_QUEUE_CAPACITY;
+    if (next == g_frame_event_queue.head) {
+        g_frame_event_queue.head =
+            (g_frame_event_queue.head + 1) % FRAME_EVENT_QUEUE_CAPACITY;
+    }
+
+    g_frame_event_queue.events[g_frame_event_queue.tail] = event;
+    g_frame_event_queue.tail                             = next;
+}
+
+internal inline FrameEvent frame_event_dequeue(void) {
+    if (g_frame_event_queue.head == g_frame_event_queue.tail) {
+        return (FrameEvent){.type = FRAME_EVENT_NONE};
+    }
+
+    FrameEvent event = g_frame_event_queue.events[g_frame_event_queue.head];
+    g_frame_event_queue.head =
+        (g_frame_event_queue.head + 1) % FRAME_EVENT_QUEUE_CAPACITY;
+    return event;
+}
+
+internal FrameKeyCode frame_translate_virtual_key(WPARAM vk) {
+    if (vk >= '0' && vk <= '9') {
+        return (FrameKeyCode)vk;
+    }
+    if (vk >= 'A' && vk <= 'Z') {
+        return (FrameKeyCode)vk;
+    }
+
+    switch (vk) {
+    case VK_SPACE:
+        return FRAME_KEY_SPACE;
+    case VK_OEM_7:
+        return FRAME_KEY_APOSTROPHE;
+    case VK_OEM_COMMA:
+        return FRAME_KEY_COMMA;
+    case VK_OEM_MINUS:
+        return FRAME_KEY_MINUS;
+    case VK_OEM_PERIOD:
+        return FRAME_KEY_PERIOD;
+    case VK_OEM_2:
+        return FRAME_KEY_SLASH;
+    case VK_OEM_1:
+        return FRAME_KEY_SEMICOLON;
+    case VK_OEM_PLUS:
+        return FRAME_KEY_EQUAL;
+    case VK_OEM_3:
+        return FRAME_KEY_GRAVE_ACCENT;
+    case VK_OEM_4:
+        return FRAME_KEY_LEFT_BRACKET;
+    case VK_OEM_5:
+        return FRAME_KEY_BACKSLASH;
+    case VK_OEM_6:
+        return FRAME_KEY_RIGHT_BRACKET;
+    case VK_ESCAPE:
+        return FRAME_KEY_ESCAPE;
+    case VK_RETURN:
+        return FRAME_KEY_ENTER;
+    case VK_TAB:
+        return FRAME_KEY_TAB;
+    case VK_BACK:
+        return FRAME_KEY_BACKSPACE;
+    case VK_INSERT:
+        return FRAME_KEY_INSERT;
+    case VK_DELETE:
+        return FRAME_KEY_DELETE;
+    case VK_RIGHT:
+        return FRAME_KEY_RIGHT;
+    case VK_LEFT:
+        return FRAME_KEY_LEFT;
+    case VK_DOWN:
+        return FRAME_KEY_DOWN;
+    case VK_UP:
+        return FRAME_KEY_UP;
+    case VK_PRIOR:
+        return FRAME_KEY_PAGE_UP;
+    case VK_NEXT:
+        return FRAME_KEY_PAGE_DOWN;
+    case VK_HOME:
+        return FRAME_KEY_HOME;
+    case VK_END:
+        return FRAME_KEY_END;
+    case VK_CAPITAL:
+        return FRAME_KEY_CAPS_LOCK;
+    case VK_SCROLL:
+        return FRAME_KEY_SCROLL_LOCK;
+    case VK_NUMLOCK:
+        return FRAME_KEY_NUM_LOCK;
+    case VK_SNAPSHOT:
+        return FRAME_KEY_PRINT_SCREEN;
+    case VK_PAUSE:
+        return FRAME_KEY_PAUSE;
+    case VK_F1:
+        return FRAME_KEY_F1;
+    case VK_F2:
+        return FRAME_KEY_F2;
+    case VK_F3:
+        return FRAME_KEY_F3;
+    case VK_F4:
+        return FRAME_KEY_F4;
+    case VK_F5:
+        return FRAME_KEY_F5;
+    case VK_F6:
+        return FRAME_KEY_F6;
+    case VK_F7:
+        return FRAME_KEY_F7;
+    case VK_F8:
+        return FRAME_KEY_F8;
+    case VK_F9:
+        return FRAME_KEY_F9;
+    case VK_F10:
+        return FRAME_KEY_F10;
+    case VK_F11:
+        return FRAME_KEY_F11;
+    case VK_F12:
+        return FRAME_KEY_F12;
+    case VK_F13:
+        return FRAME_KEY_F13;
+    case VK_F14:
+        return FRAME_KEY_F14;
+    case VK_F15:
+        return FRAME_KEY_F15;
+    case VK_F16:
+        return FRAME_KEY_F16;
+    case VK_F17:
+        return FRAME_KEY_F17;
+    case VK_F18:
+        return FRAME_KEY_F18;
+    case VK_F19:
+        return FRAME_KEY_F19;
+    case VK_F20:
+        return FRAME_KEY_F20;
+    case VK_F21:
+        return FRAME_KEY_F21;
+    case VK_F22:
+        return FRAME_KEY_F22;
+    case VK_F23:
+        return FRAME_KEY_F23;
+    case VK_F24:
+        return FRAME_KEY_F24;
+    case VK_NUMPAD0:
+        return FRAME_KEY_KP_0;
+    case VK_NUMPAD1:
+        return FRAME_KEY_KP_1;
+    case VK_NUMPAD2:
+        return FRAME_KEY_KP_2;
+    case VK_NUMPAD3:
+        return FRAME_KEY_KP_3;
+    case VK_NUMPAD4:
+        return FRAME_KEY_KP_4;
+    case VK_NUMPAD5:
+        return FRAME_KEY_KP_5;
+    case VK_NUMPAD6:
+        return FRAME_KEY_KP_6;
+    case VK_NUMPAD7:
+        return FRAME_KEY_KP_7;
+    case VK_NUMPAD8:
+        return FRAME_KEY_KP_8;
+    case VK_NUMPAD9:
+        return FRAME_KEY_KP_9;
+    case VK_DECIMAL:
+        return FRAME_KEY_KP_DECIMAL;
+    case VK_DIVIDE:
+        return FRAME_KEY_KP_DIVIDE;
+    case VK_MULTIPLY:
+        return FRAME_KEY_KP_MULTIPLY;
+    case VK_SUBTRACT:
+        return FRAME_KEY_KP_SUBTRACT;
+    case VK_ADD:
+        return FRAME_KEY_KP_ADD;
+    case VK_LSHIFT:
+        return FRAME_KEY_LEFT_SHIFT;
+    case VK_LCONTROL:
+        return FRAME_KEY_LEFT_CONTROL;
+    case VK_LMENU:
+        return FRAME_KEY_LEFT_ALT;
+    case VK_LWIN:
+        return FRAME_KEY_LEFT_SUPER;
+    case VK_RSHIFT:
+        return FRAME_KEY_RIGHT_SHIFT;
+    case VK_RCONTROL:
+        return FRAME_KEY_RIGHT_CONTROL;
+    case VK_RMENU:
+        return FRAME_KEY_RIGHT_ALT;
+    case VK_RWIN:
+        return FRAME_KEY_RIGHT_SUPER;
+    case VK_APPS:
+        return FRAME_KEY_MENU;
+    default:
+        break;
+    }
+
+    return FRAME_KEY_UNKNOWN;
+}
+
+internal FrameEvent frame_translate_message(const MSG* msg) {
+    FrameEvent event = {.type = FRAME_EVENT_NONE};
+    switch (msg->message) {
+    case WM_MOUSEMOVE:
+        event.type         = FRAME_EVENT_MOUSEMOVE;
+        event.mouse_move.x = (int)(short)LOWORD(msg->lParam);
+        event.mouse_move.y = (int)(short)HIWORD(msg->lParam);
+        break;
+    case WM_LBUTTONDOWN:
+        event.type                = FRAME_EVENT_MOUSEBUTTONDOWN;
+        event.mouse_button.button = 1;
+        event.mouse_button.x      = (int)(short)LOWORD(msg->lParam);
+        event.mouse_button.y      = (int)(short)HIWORD(msg->lParam);
+        break;
+    case WM_LBUTTONUP:
+        event.type                = FRAME_EVENT_MOUSEBUTTONUP;
+        event.mouse_button.button = 1;
+        event.mouse_button.x      = (int)(short)LOWORD(msg->lParam);
+        event.mouse_button.y      = (int)(short)HIWORD(msg->lParam);
+        break;
+    case WM_MBUTTONDOWN:
+        event.type                = FRAME_EVENT_MOUSEBUTTONDOWN;
+        event.mouse_button.button = 2;
+        event.mouse_button.x      = (int)(short)LOWORD(msg->lParam);
+        event.mouse_button.y      = (int)(short)HIWORD(msg->lParam);
+        break;
+    case WM_MBUTTONUP:
+        event.type                = FRAME_EVENT_MOUSEBUTTONUP;
+        event.mouse_button.button = 2;
+        event.mouse_button.x      = (int)(short)LOWORD(msg->lParam);
+        event.mouse_button.y      = (int)(short)HIWORD(msg->lParam);
+        break;
+    case WM_RBUTTONDOWN:
+        event.type                = FRAME_EVENT_MOUSEBUTTONDOWN;
+        event.mouse_button.button = 3;
+        event.mouse_button.x      = (int)(short)LOWORD(msg->lParam);
+        event.mouse_button.y      = (int)(short)HIWORD(msg->lParam);
+        break;
+    case WM_RBUTTONUP:
+        event.type                = FRAME_EVENT_MOUSEBUTTONUP;
+        event.mouse_button.button = 3;
+        event.mouse_button.x      = (int)(short)LOWORD(msg->lParam);
+        event.mouse_button.y      = (int)(short)HIWORD(msg->lParam);
+        break;
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN: {
+        FrameKeyCode keycode = frame_translate_virtual_key(msg->wParam);
+        if (keycode != FRAME_KEY_UNKNOWN) {
+            event.type        = FRAME_EVENT_KEYDOWN;
+            event.key.keycode = keycode;
+        }
+    } break;
+    case WM_KEYUP:
+    case WM_SYSKEYUP: {
+        FrameKeyCode keycode = frame_translate_virtual_key(msg->wParam);
+        if (keycode != FRAME_KEY_UNKNOWN) {
+            event.type        = FRAME_EVENT_KEYUP;
+            event.key.keycode = keycode;
+        }
+    } break;
+    case WM_SIZE:
+        event.type          = FRAME_EVENT_RESIZE;
+        event.resize.width  = (int)LOWORD(msg->lParam);
+        event.resize.height = (int)HIWORD(msg->lParam);
+        break;
+    case WM_ACTIVATE:
+        event.type = (LOWORD(msg->wParam) == WA_INACTIVE) ? FRAME_EVENT_SUSPEND
+                                                          : FRAME_EVENT_RESUME;
+        break;
+    default:
+        break;
+    }
+
+    return event;
+}
 
 static void frame_cleanup(Frame* f) {
     // Destroy layers
