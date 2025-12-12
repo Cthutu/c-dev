@@ -724,7 +724,7 @@ Frame frame_open(int width, int height, bool resizable, cstr title) {
     swa.colormap             = f.colormap;
     swa.event_mask           = ExposureMask | KeyPressMask | KeyReleaseMask |
                      ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
-                     StructureNotifyMask;
+                     StructureNotifyMask | FocusChangeMask;
 
     f.window = XCreateWindow(f.display,
                              RootWindow(f.display, vi->screen),
@@ -749,7 +749,8 @@ Frame frame_open(int width, int height, bool resizable, cstr title) {
     XSelectInput(f.display,
                  f.window,
                  ExposureMask | KeyPressMask | KeyReleaseMask |
-                     ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
+                     ButtonPressMask | ButtonReleaseMask | PointerMotionMask |
+                     StructureNotifyMask | FocusChangeMask);
     g_wm_delete_window = XInternAtom(f.display, "WM_DELETE_WINDOW", False);
     XSetWMProtocols(f.display, f.window, &g_wm_delete_window, 1);
 
