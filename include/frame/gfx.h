@@ -837,19 +837,19 @@ void gfx_render(GfxLayer** layers,
         float verts[16] = {-hw,
                            -hh,
                            0.0f,
-                           0.0f,
+                           1.0f,
                            hw,
                            -hh,
                            1.0f,
-                           0.0f,
+                           1.0f,
                            -hw,
                            hh,
                            0.0f,
-                           1.0f,
+                           0.0f,
                            hw,
                            hh,
                            1.0f,
-                           1.0f};
+                           0.0f};
 
         glBindTexture(GL_TEXTURE_2D, L->tex);
         glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_DYNAMIC_DRAW);
