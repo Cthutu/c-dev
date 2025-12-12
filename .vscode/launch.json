@@ -5,7 +5,7 @@
             "name": "Debug test",
             "type": "lldb",
             "request": "launch",
-            "program": "${workspaceFolder}/_bin/hello",
+            "program": "${workspaceFolder}/_bin/example",
             "args": [],
             "cwd": "${workspaceFolder}",
             "environment": [],
@@ -13,7 +13,7 @@
             "console": "integratedTerminal",
             "windows": {
                 "type": "cppvsdbg",
-                "program": "${workspaceFolder}/_bin/hello.exe"
+                "program": "${workspaceFolder}/_bin/example.exe"
             }
         }
     ]

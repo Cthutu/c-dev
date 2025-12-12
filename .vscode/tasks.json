@@ -6,7 +6,8 @@
             "type": "process",
             "command": "just",
             "args": [
-                "build"
+                "build",
+                "example"
             ],
             "group": {
                 "kind": "build",
