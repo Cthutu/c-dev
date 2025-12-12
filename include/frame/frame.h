@@ -1301,7 +1301,7 @@ Frame frame_open(int width, int height, bool resizable, const char* title) {
                               : (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU |
                                  WS_MINIMIZEBOX | WS_VISIBLE);
 
-    RECT rc = {0, 0, f.width, f.height};
+    RECT rc     = {0, 0, f.width, f.height};
     AdjustWindowRect(&rc, style & ~WS_VISIBLE, FALSE);
 
     f.hwnd = CreateWindowEx(WS_EX_CLIENTEDGE,
