@@ -67,6 +67,23 @@ void frame_free_pixels_layer(u32* pixels);
 #ifdef KORE_IMPLEMENTATION
 
 //------------------------------------------------------------------------------
+// Common helpers
+
+internal inline void frame_update_timing(Frame* f) {
+    if (!f) {
+        return;
+    }
+    f->frame_count++;
+    TimePoint now   = time_now();
+    TimeDuration dt = time_elapsed(f->last_time, now);
+    f64 secs        = time_secs(dt);
+    if (secs > 0.0) {
+        f->fps = 1.0 / secs;
+    }
+    f->last_time = now;
+}
+
+//------------------------------------------------------------------------------
 // Linux frame implementation
 
 #    if KORE_OS_LINUX
@@ -312,14 +329,8 @@ bool frame_loop(Frame* f) {
     gfx_render(f->layers, array_count(f->layers), wa.width, wa.height);
     glXSwapBuffers(f->display, f->window);
 
-    f->frame_count++;
-    TimePoint now   = time_now();
-    TimeDuration dt = time_elapsed(f->last_time, now);
-    f64 secs        = time_secs(dt);
-    if (secs > 0.0) {
-        f->fps = 1.0 / secs;
-    }
-    f->last_time = now;
+    // Update timing/FPS after presenting
+    frame_update_timing(f);
     return true;
 }
 
@@ -449,6 +460,16 @@ Frame frame_open(int width, int height, const char* title) {
         exit(EXIT_FAILURE);
     }
 
+    // Disable vsync to expose raw throughput (if supported)
+    {
+        typedef BOOL(WINAPI * PFNWGLSWAPINTERVALEXTPROC)(int);
+        PFNWGLSWAPINTERVALEXTPROC wglSwapIntervalEXT =
+            (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+        if (wglSwapIntervalEXT) {
+            wglSwapIntervalEXT(0);
+        }
+    }
+
     if (!gfx_init()) {
         eprn("Failed to initialize graphics system");
         frame_cleanup(&f);
@@ -489,14 +510,7 @@ bool frame_loop(Frame* f) {
     gfx_render(f->layers, array_count(f->layers), win_w, win_h);
     SwapBuffers(f->hdc);
 
-    f->frame_count++;
-    TimePoint now   = time_now();
-    TimeDuration dt = time_elapsed(f->last_time, now);
-    f64 secs        = time_secs(dt);
-    if (secs > 0.0) {
-        f->fps = 1.0 / secs;
-    }
-    f->last_time = now;
+    frame_update_timing(f);
     return true;
 }
 
@@ -508,7 +522,6 @@ bool frame_loop(Frame* f) {
 
 //------------------------------------------------------------------------------
 // Common frame functions
-
 u32* frame_add_pixels_layer(Frame* f, int width, int height) {
     GfxLayer* layer = gfx_layer_create(width, height, NULL);
     if (!layer) {
