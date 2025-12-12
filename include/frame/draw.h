@@ -12,6 +12,10 @@
 
 //------------------------------------------------------------------------------
 
+#define COLOUR_RGBA(r, g, b, a)                                                \
+    (((u32)(a) << 24) | ((u32)(b) << 16) | ((u32)(g) << 8) | (u32)(r))
+#define COLOUR_RGB(r, g, b) COLOUR_RGBA(r, g, b, 255u)
+
 typedef enum {
     DRAW_CONTEXT_TYPE_PIXEL_BUFFER,
 } DrawContextType;
@@ -61,9 +65,6 @@ void draw_filled_rect(
     DrawContext* ctx, int x, int y, int width, int height, u32 colour);
 void draw_circle(DrawContext* ctx, int x, int y, int radius, u32 colour);
 void draw_filled_circle(DrawContext* ctx, int x, int y, int radius, u32 colour);
-
-u32 colour_rgba(u8 r, u8 g, u8 b, u8 a);
-u32 colour_rgb(u8 r, u8 g, u8 b);
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -231,13 +232,6 @@ void draw_filled_circle(
 //------------------------------------------------------------------------------
 // Colour helpers
 //------------------------------------------------------------------------------
-
-u32 colour_rgba(u8 r, u8 g, u8 b, u8 a) {
-    // Convert to ABGR format
-    return ((u32)a << 24) | ((u32)b << 16) | ((u32)g << 8) | (u32)r;
-}
-
-u32 colour_rgb(u8 r, u8 g, u8 b) { return colour_rgba(r, g, b, 255); }
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
