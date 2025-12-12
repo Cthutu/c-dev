@@ -3,6 +3,7 @@
 #include <frame/frame.h>
 #include <kore/kore.h>
 #include <math.h>
+#include <stddef.h>
 
 // Simple plasma-like animation with orbiting bands and a subtle pixel grid.
 static void render_demo(u32* pixels, int w, int h, f64 time_s) {
@@ -11,10 +12,70 @@ static void render_demo(u32* pixels, int w, int h, f64 time_s) {
     PixelBufferDrawContext draw_ctx = draw_create_pixel_context(w, h, pixels);
     DrawContext* ctx                = &draw_ctx.ctx;
 
-    draw_horz_line(ctx, 0, 0, w, colour_rgb(255, 0, 0));
-    draw_horz_line(ctx, 0, h - 1, w, colour_rgb(255, 0, 0));
-    draw_vert_line(ctx, 0, 0, h, colour_rgb(255, 0, 0));
-    draw_vert_line(ctx, w - 1, 0, h, colour_rgb(255, 0, 0));
+    draw_horz_line(ctx, 0, 0, w, COLOUR_RGB(255, 0, 0));
+    draw_horz_line(ctx, 0, h - 1, w, COLOUR_RGB(255, 0, 0));
+    draw_vert_line(ctx, 0, 0, h, COLOUR_RGB(255, 0, 0));
+    draw_vert_line(ctx, w - 1, 0, h, COLOUR_RGB(255, 0, 0));
+
+    const int cx = w / 2;
+    const int cy = h / 2;
+    static const struct {
+        double dx;
+        double dy;
+        u32 colour;
+    } octants[] = {
+        {0.9238795325,
+         -0.3826834324,
+         COLOUR_RGB(255, 128, 0)}, // East-NorthEast (orange)
+        {0.3826834324,
+         -0.9238795325,
+         COLOUR_RGB(255, 255, 0)}, // North-NorthEast (yellow)
+        {-0.3826834324,
+         -0.9238795325,
+         COLOUR_RGB(0, 255, 0)}, // North-NorthWest (green)
+        {-0.9238795325,
+         -0.3826834324,
+         COLOUR_RGB(0, 255, 255)}, // West-NorthWest (cyan)
+        {-0.9238795325,
+         0.3826834324,
+         COLOUR_RGB(0, 128, 255)}, // West-SouthWest (blue)
+        {-0.3826834324,
+         0.9238795325,
+         COLOUR_RGB(0, 0, 255)}, // South-SouthWest (blue)
+        {0.3826834324,
+         0.9238795325,
+         COLOUR_RGB(128, 0, 255)}, // South-SouthEast (purple)
+        {0.9238795325,
+         0.3826834324,
+         COLOUR_RGB(255, 0, 255)}, // East-SouthEast (magenta)
+    };
+
+    for (size_t i = 0; i < sizeof(octants) / sizeof(octants[0]); ++i) {
+        const double dx = octants[i].dx;
+        const double dy = octants[i].dy;
+
+        const double tx =
+            dx > 0.0 ? (w - 1 - cx) / dx : (dx < 0.0 ? (0.0 - cx) / dx : 1e9);
+        const double ty =
+            dy > 0.0 ? (h - 1 - cy) / dy : (dy < 0.0 ? (0.0 - cy) / dy : 1e9);
+        const double t = (tx < ty) ? tx : ty;
+
+        int x1         = (int)lround(cx + dx * t);
+        int y1         = (int)lround(cy + dy * t);
+
+        if (x1 < 0) {
+            x1 = 0;
+        } else if (x1 >= w) {
+            x1 = w - 1;
+        }
+        if (y1 < 0) {
+            y1 = 0;
+        } else if (y1 >= h) {
+            y1 = h - 1;
+        }
+
+        draw_line(ctx, cx, cy, x1, y1, octants[i].colour);
+    }
 }
 
 int kmain(int argc, char** argv) {
