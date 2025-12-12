@@ -327,19 +327,21 @@ typedef struct {
 
 typedef struct {
     // Frame parameters
-    const char* title;
-    int width;
-    int height;
-    Array(GfxLayer*) layers;
-    bool done;
+    cstr title;              // Title of window
+    int width;               // Width of inner part in pixels
+    int height;              // Height of inner part in pixels
+    Array(GfxLayer*) layers; // Graphics layers that are rendered in window
+    bool done;               // True if frame is to be closed
+    bool resizable; // True if you are allowed to resize the window (fullscreen
+                    // always works)
 
     // FPS Tracking
-    TimePoint last_time;
-    u64 frame_count;
-    f64 fps;
+    TimePoint last_time; // Last frame time point
+    u64 frame_count;     // Total frames since open
+    f64 fps;             // Most recent calculation of FPS
 
     // Event queue
-    Array(FrameEvent) events;
+    Array(FrameEvent) events; // Event queue
 
 // OS Windows references
 #if KORE_OS_WINDOWS
@@ -362,7 +364,7 @@ typedef struct {
 // Frame API
 //
 
-Frame frame_open(int width, int height, cstr title);
+Frame frame_open(int width, int height, bool resizable, cstr title);
 bool frame_loop(Frame* f);
 void frame_done(Frame* f);
 u32* frame_add_pixels_layer(Frame* f, int width, int height);
@@ -452,11 +454,12 @@ internal void frame_cleanup(Frame* f) {
 }
 
 // TODO: Implement the key and mouse events here and for Windows
-Frame frame_open(int width, int height, cstr title) {
+Frame frame_open(int width, int height, bool resizable, cstr title) {
     Frame f = {
         .title       = title,
         .width       = width,
         .height      = height,
+        .resizable   = resizable,
         .done        = false,
         .last_time   = 0,
         .frame_count = 0,
@@ -782,13 +785,17 @@ Frame frame_open(int width, int height, const char* title) {
 
     RegisterClassEx(&wc);
 
+    DWORD style = f.resizable ? (WS_OVERLAPPEDWINDOW | WS_VISIBLE)
+                              : (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU |
+                                 WS_MINIMIZEBOX | WS_VISIBLE);
+
     RECT rc = {0, 0, f.width, f.height};
-    AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+    AdjustWindowRect(&rc, style & ~WS_VISIBLE, FALSE);
 
     f.hwnd = CreateWindowEx(WS_EX_CLIENTEDGE,
                             f.title,
                             f.title,
-                            WS_OVERLAPPEDWINDOW | WS_VISIBLE,
+                            style,
                             CW_USEDEFAULT,
                             CW_USEDEFAULT,
                             rc.right - rc.left,

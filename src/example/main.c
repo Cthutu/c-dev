@@ -53,7 +53,7 @@ int kmain(int argc, char** argv) {
     KORE_UNUSED(argc);
     KORE_UNUSED(argv);
 
-    Frame main_frame  = frame_open(800, 600, "Kore Frame Example");
+    Frame main_frame  = frame_open(800, 600, true, "Kore Frame Example");
 
     u32* layer_pixels = frame_add_pixels_layer(&main_frame, 400, 300);
     if (!layer_pixels) {
