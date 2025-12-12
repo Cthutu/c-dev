@@ -842,6 +842,26 @@ bool frame_loop(Frame* f) {
             running = false;
             break;
 
+        case ConfigureNotify: {
+            if (event.xconfigure.width != f->width ||
+                event.xconfigure.height != f->height) {
+                f->width  = event.xconfigure.width;
+                f->height = event.xconfigure.height;
+                FrameEvent ev = {.type = FRAME_EVENT_RESIZE};
+                frame_event_enqueue(f, ev);
+            }
+        } break;
+
+        case FocusIn: {
+            FrameEvent ev = {.type = FRAME_EVENT_RESUME};
+            frame_event_enqueue(f, ev);
+        } break;
+
+        case FocusOut: {
+            FrameEvent ev = {.type = FRAME_EVENT_SUSPEND};
+            frame_event_enqueue(f, ev);
+        } break;
+
         case KeyPress:
         case KeyRelease: {
             FrameEvent ev  = {.type = (event.type == KeyPress)
