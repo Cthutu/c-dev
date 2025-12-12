@@ -839,13 +839,61 @@ bool frame_loop(Frame* f) {
             break;
 
         case KeyPress:
-        case KeyRelease:
-            // TODO: Handle key events if needed
+        case KeyRelease: {
+            FrameEvent ev  = {.type = (event.type == KeyPress)
+                                          ? FRAME_EVENT_KEY_DOWN
+                                          : FRAME_EVENT_KEY_UP};
+            KeySym sym     = XLookupKeysym(&event.xkey, 0);
+            ev.key.keycode = frame_x11_keysym_to_key(sym);
+            ev.key.shift   = frame_x11_modifiers(event.xkey.state, sym);
+            ev.key.character =
+                0; // Default to no character unless resolved below
+
+            if (ev.type == FRAME_EVENT_KEY_DOWN) {
+                char buf[8];
+                int len = XLookupString(
+                    &event.xkey, buf, (int)sizeof(buf), NULL, NULL);
+                if (len > 0) {
+                    ev.key.character = (u8)buf[0];
+                }
+            }
+
+            frame_event_enqueue(f, ev);
+        } break;
 
         case ButtonPress:
-        case ButtonRelease:
-        case MotionNotify:
-            // TODO: Handle mouse events if needed
+        case ButtonRelease: {
+            FrameEvent ev   = {.type = (event.type == ButtonPress)
+                                           ? FRAME_EVENT_MOUSE_BUTTON_DOWN
+                                           : FRAME_EVENT_MOUSE_BUTTON_UP};
+            ev.mouse.x      = event.xbutton.x;
+            ev.mouse.y      = event.xbutton.y;
+            ev.mouse.button = 0;
+
+            switch (event.xbutton.button) {
+            case Button1:
+                ev.mouse.button = MOUSE_BUTTON_LEFT;
+                break;
+            case Button2:
+                ev.mouse.button = MOUSE_BUTTON_MIDDLE;
+                break;
+            case Button3:
+                ev.mouse.button = MOUSE_BUTTON_RIGHT;
+                break;
+            default:
+                break;
+            }
+
+            frame_event_enqueue(f, ev);
+        } break;
+
+        case MotionNotify: {
+            FrameEvent ev   = {.type = FRAME_EVENT_MOUSE_MOVE};
+            ev.mouse.x      = event.xmotion.x;
+            ev.mouse.y      = event.xmotion.y;
+            ev.mouse.button = 0;
+            frame_event_enqueue(f, ev);
+        } break;
 
         default:
             break;
