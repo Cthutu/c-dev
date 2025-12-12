@@ -19,6 +19,40 @@
 
 //------------------------------------------------------------------------------
 
+typedef enum {
+    FRAME_EVENT_NONE = 0,
+    FRAME_EVENT_KEY_DOWN,
+    FRAME_EVENT_KEY_UP,
+    FRAME_EVENT_MOUSE_MOVE,
+    FRAME_EVENT_MOUSE_BUTTON_DOWN,
+    FRAME_EVENT_MOUSE_BUTTON_UP,
+} FrameEventType;
+
+typedef enum {
+    MOUSE_BUTTON_LEFT   = 1,
+    MOUSE_BUTTON_MIDDLE = 2,
+    MOUSE_BUTTON_RIGHT  = 3,
+} MouseButton;
+
+// TODO: Define the scan codes as enums
+typedef enum {
+    KEY_CODE_UNKNOWN = 0,
+} FrameKey;
+
+typedef struct {
+    FrameEventType type;
+    union {
+        struct {
+            FrameKey keycode;
+        } key;
+        struct {
+            int x;
+            int y;
+            MouseButton button;
+        } mouse;
+    };
+} FrameEvent;
+
 typedef struct {
     // Frame parameters
     const char* title;
@@ -30,6 +64,9 @@ typedef struct {
     TimePoint last_time;
     u64 frame_count;
     f64 fps;
+
+    // Event queue
+    Array(FrameEvent) events;
 
 // OS Windows references
 #if KORE_OS_WINDOWS
@@ -49,11 +86,15 @@ typedef struct {
 //------------------------------------------------------------------------------
 
 Frame frame_open(int width, int height, cstr title);
-bool frame_loop(Frame* w);
-u32* frame_add_pixels_layer(Frame* w, int width, int height);
-f64 frame_fps(Frame* w);
+bool frame_loop(Frame* f);
+u32* frame_add_pixels_layer(Frame* f, int width, int height);
+f64 frame_fps(Frame* f);
 
-void frame_fullscreen(Frame* w, bool enable);
+void frame_fullscreen(Frame* f, bool enable);
+
+void frame_event_enqueue(Frame* f, FrameEvent event);
+void frame_event_clear(Frame* f);
+FrameEvent frame_event_poll(Frame* f);
 
 //------------------------------------------------------------------------------
 // Clean up API
@@ -132,6 +173,7 @@ Frame frame_open(int width, int height, cstr title) {
         .last_time   = 0,
         .frame_count = 0,
         .fps         = 0.0,
+        .events      = nullptr,
     };
 
     f.display = XOpenDisplay(NULL);
@@ -320,6 +362,7 @@ bool frame_loop(Frame* f) {
 
     if (!running || !f->display || !f->window || !f->glx_ctx) {
         frame_cleanup(f);
+        array_free(f->events);
         return false;
     }
 
@@ -340,8 +383,8 @@ void frame_fullscreen(Frame* f, bool enable) {
         return;
     }
 
-    static Atom wm_state           = None;
-    static Atom fullscreen_atom    = None;
+    static Atom wm_state        = None;
+    static Atom fullscreen_atom = None;
     if (wm_state == None) {
         wm_state = XInternAtom(f->display, "_NET_WM_STATE", False);
     }
@@ -350,9 +393,9 @@ void frame_fullscreen(Frame* f, bool enable) {
             XInternAtom(f->display, "_NET_WM_STATE_FULLSCREEN", False);
     }
 
-    XEvent xev       = {0};
-    xev.type         = ClientMessage;
-    xev.xclient.window = f->window;
+    XEvent xev               = {0};
+    xev.type                 = ClientMessage;
+    xev.xclient.window       = f->window;
     xev.xclient.message_type = wm_state;
     xev.xclient.format       = 32;
     xev.xclient.data.l[0]    = enable ? 1 : 0; // _NET_WM_STATE_ADD / REMOVE
@@ -522,6 +565,7 @@ bool frame_loop(Frame* f) {
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         if (msg.message == WM_QUIT) {
             frame_cleanup(f);
+            array_free(f->events);
             return false;
         }
         TranslateMessage(&msg);
@@ -530,6 +574,7 @@ bool frame_loop(Frame* f) {
 
     if (!f->hwnd) {
         frame_cleanup(f);
+        array_free(f->events);
         return false;
     }
 
@@ -559,8 +604,8 @@ void frame_fullscreen(Frame* f, bool enable) {
     static bool is_fullscreen      = false;
 
     if (enable && !is_fullscreen) {
-        prev_style    = (DWORD)GetWindowLongPtr(f->hwnd, GWL_STYLE);
-        prev_ex_style = (DWORD)GetWindowLongPtr(f->hwnd, GWL_EXSTYLE);
+        prev_style     = (DWORD)GetWindowLongPtr(f->hwnd, GWL_STYLE);
+        prev_ex_style  = (DWORD)GetWindowLongPtr(f->hwnd, GWL_EXSTYLE);
         prev_wp.length = sizeof(prev_wp);
         GetWindowPlacement(f->hwnd, &prev_wp);
 
@@ -618,6 +663,37 @@ f64 frame_fps(Frame* f) { return f->fps; }
 
 void frame_free_pixels_layer(u32* pixels) {
     KORE_UNUSED(pixels); // Layer teardown happens in frame_cleanup
+}
+
+//------------------------------------------------------------------------------
+// Event functions
+
+void frame_event_enqueue(Frame* f, FrameEvent event) {
+    if (!f) {
+        return;
+    }
+    array_push(f->events, event);
+}
+
+void frame_event_clear(Frame* f) {
+    if (!f) {
+        return;
+    }
+    array_clear(f->events);
+}
+
+FrameEvent frame_event_poll(Frame* f) {
+    FrameEvent ev = {.type = FRAME_EVENT_NONE};
+    if (!f || array_count(f->events) == 0) {
+        return ev;
+    }
+    ev = f->events[0];
+    // Remove the event from the queue
+    for (u64 i = 1; i < array_count(f->events); ++i) {
+        f->events[i - 1] = f->events[i];
+    }
+    array_pop(f->events);
+    return ev;
 }
 
 //------------------------------------------------------------------------------

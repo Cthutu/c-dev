@@ -294,6 +294,13 @@ static void* array_maybe_grow(void* array,
         }                                                                      \
     } while (0)
 
+#define array_clear(a)                                                         \
+    do {                                                                       \
+        if (a) {                                                               \
+            __array_count(a) = 0;                                              \
+        }                                                                      \
+    } while (0)
+
 #define array_requires(a, required_capacity)                                   \
     (a) = (typeof(*(a))*)array_maybe_grow(                                     \
         (a), sizeof(*(a)), (required_capacity), __FILE__, __LINE__)
