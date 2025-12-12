@@ -110,6 +110,9 @@ Frame frame_open(int width, int height, cstr title) {
         .title  = title,
         .width  = width,
         .height = height,
+        .last_time = 0,
+        .frame_count = 0,
+        .fps = 0.0,
     };
 
     f.display = XOpenDisplay(NULL);
@@ -255,6 +258,9 @@ Frame frame_open(int width, int height, cstr title) {
     }
 
     XFlush(f.display);
+    f.last_time   = time_now();
+    f.frame_count = 0;
+    f.fps         = 0.0;
 
     return f;
 }
@@ -305,6 +311,15 @@ bool frame_loop(Frame* f) {
     glXMakeCurrent(f->display, f->window, f->glx_ctx);
     gfx_render(f->layers, array_count(f->layers), wa.width, wa.height);
     glXSwapBuffers(f->display, f->window);
+
+    f->frame_count++;
+    TimePoint now   = time_now();
+    TimeDuration dt = time_elapsed(f->last_time, now);
+    f64 secs        = time_secs(dt);
+    if (secs > 0.0) {
+        f->fps = 1.0 / secs;
+    }
+    f->last_time = now;
     return true;
 }
 
@@ -367,6 +382,9 @@ Frame frame_open(int width, int height, const char* title) {
         .title  = title,
         .width  = width,
         .height = height,
+        .last_time = 0,
+        .frame_count = 0,
+        .fps = 0.0,
     };
 
     HINSTANCE instance = GetModuleHandle(NULL);
@@ -437,6 +455,10 @@ Frame frame_open(int width, int height, const char* title) {
         exit(EXIT_FAILURE);
     }
 
+    f.last_time   = time_now();
+    f.frame_count = 0;
+    f.fps         = 0.0;
+
     return f;
 }
 
@@ -466,6 +488,15 @@ bool frame_loop(Frame* f) {
 
     gfx_render(f->layers, array_count(f->layers), win_w, win_h);
     SwapBuffers(f->hdc);
+
+    f->frame_count++;
+    TimePoint now   = time_now();
+    TimeDuration dt = time_elapsed(f->last_time, now);
+    f64 secs        = time_secs(dt);
+    if (secs > 0.0) {
+        f->fps = 1.0 / secs;
+    }
+    f->last_time = now;
     return true;
 }
 
@@ -489,26 +520,6 @@ u32* frame_add_pixels_layer(Frame* f, int width, int height) {
 }
 
 f64 frame_fps(Frame* f) {
-    f->frame_count++;
-    TimePoint current_time = time_now();
-
-    // Initialize on first call
-    if (f->frame_count == 1) {
-        f->last_time = current_time;
-        f->fps       = 0.0;
-        return f->fps;
-    }
-
-    // Calculate FPS based on elapsed time since last update
-    TimeDuration elapsed = time_elapsed(f->last_time, current_time);
-    f64 elapsed_secs     = time_secs(elapsed);
-
-    if (elapsed_secs > 0.0) {
-        // Calculate instantaneous FPS (frames since last call / elapsed time)
-        f->fps = 1.0 / elapsed_secs;
-    }
-
-    f->last_time = current_time;
     return f->fps;
 }
 

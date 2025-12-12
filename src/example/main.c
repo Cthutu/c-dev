@@ -61,9 +61,11 @@ int kmain(int argc, char** argv) {
         return 1;
     }
 
-    const int layer_w = 400;
-    const int layer_h = 300;
-    TimePoint start   = time_now();
+    const int layer_w   = 400;
+    const int layer_h   = 300;
+    TimePoint start     = time_now();
+    TimePoint fps_timer = start;
+    f64 current_fps     = 0.0;
 
     // Main loop
     while (frame_loop(&main_frame)) {
@@ -72,9 +74,12 @@ int kmain(int argc, char** argv) {
         f64 t           = time_secs(dt);
         render_demo(layer_pixels, layer_w, layer_h, t);
 
-        // Optionally print FPS
-        f64 fps = frame_fps(&main_frame);
-        eprn("Current FPS: %.2f", fps); // Uncomment to see FPS in console
+        // Report FPS every 5 seconds
+        if (time_secs(time_elapsed(fps_timer, now)) >= 5.0) {
+            current_fps = frame_fps(&main_frame);
+            eprn("Current FPS: %.2f", current_fps);
+            fps_timer = now;
+        }
     }
 
     frame_free_pixels_layer(layer_pixels);

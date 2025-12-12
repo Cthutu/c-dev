@@ -28,7 +28,7 @@ bool gfx_init(void);
 void gfx_shutdown(void);
 
 // Create a layer. Optional initial pixel data (can be NULL).
-GfxLayer* gfx_layer_create(int width, int height, const uint32_t* rgba_pixels);
+GfxLayer* gfx_layer_create(int width, int height, const u32* rgba_pixels);
 // Destroy a layer (safe to pass NULL).
 void gfx_layer_destroy(GfxLayer* layer);
 
@@ -36,21 +36,21 @@ void gfx_layer_destroy(GfxLayer* layer);
 void gfx_layer_set_enabled(GfxLayer* layer, bool enabled);
 bool gfx_layer_is_enabled(const GfxLayer* layer);
 
-// Replace all pixels (must supply width*height uint32_t values). Size must
+// Replace all pixels (must supply width*height u32 values). Size must
 // match layer.
-void gfx_layer_update_pixels(GfxLayer* layer, const uint32_t* rgba_pixels);
+void gfx_layer_update_pixels(GfxLayer* layer, const u32* rgba_pixels);
 
 // (Optional) Resize layer and replace pixels. Pass new pixel data sized
 // new_w*new_h. Returns true on success.
 bool gfx_layer_resize(GfxLayer* layer,
                       int new_w,
                       int new_h,
-                      const uint32_t* rgba_pixels);
+                      const u32* rgba_pixels);
 
 // Accessors
 int gfx_layer_get_width(const GfxLayer* layer);
 int gfx_layer_get_height(const GfxLayer* layer);
-uint32_t* gfx_layer_get_pixels(GfxLayer* layer);
+u32* gfx_layer_get_pixels(GfxLayer* layer);
 
 // Render ordered list of layers (front-most last) to current framebuffer of
 // given window size.
@@ -109,7 +109,7 @@ struct GfxLayer {
     GLuint tex;
     bool enabled;
     GLuint pbo;
-    uint32_t* pixels; // CPU-side pixel buffer (returned to caller)
+    u32* pixels; // CPU-side pixel buffer (returned to caller)
 };
 
 // Single shared shader & geometry
@@ -633,13 +633,13 @@ static GLuint create_texture(int w, int h) {
     return tex;
 }
 
-static bool gfx_layer_init_pbo(GfxLayer* L, const uint32_t* pixels) {
-    size_t size = (size_t)L->w * (size_t)L->h * sizeof(uint32_t);
+static bool gfx_layer_init_pbo(GfxLayer* L, const u32* pixels) {
+    size_t size = (size_t)L->w * (size_t)L->h * sizeof(u32);
     glGenBuffers(1, &L->pbo);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, L->pbo);
     glBufferData(GL_PIXEL_UNPACK_BUFFER, (GLsizeiptr)size, NULL, GL_STREAM_DRAW);
 
-    L->pixels = (uint32_t*)malloc(size);
+    L->pixels = KORE_ARRAY_ALLOC(u32, L->w * L->h);
     if (!L->pixels) {
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
         glDeleteBuffers(1, &L->pbo);
@@ -668,27 +668,28 @@ static bool gfx_layer_init_pbo(GfxLayer* L, const uint32_t* pixels) {
     return true;
 }
 
-GfxLayer* gfx_layer_create(int width, int height, const uint32_t* rgba_pixels) {
+GfxLayer* gfx_layer_create(int width, int height, const u32* rgba_pixels) {
     if (width <= 0 || height <= 0) {
         return NULL;
     }
-    GfxLayer* L = (GfxLayer*)calloc(1, sizeof(GfxLayer));
+    GfxLayer* L = KORE_ARRAY_ALLOC(GfxLayer, 1);
     if (!L) {
         return NULL;
     }
+    memset(L, 0, sizeof(GfxLayer));
     L->w       = width;
     L->h       = height;
     L->enabled = true;
     L->tex     = create_texture(width, height);
     if (!L->tex) {
-        free(L);
+        KORE_FREE(L);
         return NULL;
     }
     if (!gfx_layer_init_pbo(L, rgba_pixels)) {
         if (L->tex) {
             glDeleteTextures(1, &L->tex);
         }
-        free(L);
+        KORE_FREE(L);
         return NULL;
     }
     return L;
@@ -699,7 +700,7 @@ void gfx_layer_destroy(GfxLayer* layer) {
         return;
     }
     if (layer->pixels) {
-        free(layer->pixels);
+        KORE_ARRAY_FREE(layer->pixels);
     }
     if (layer->pbo) {
         glDeleteBuffers(1, &layer->pbo);
@@ -707,7 +708,7 @@ void gfx_layer_destroy(GfxLayer* layer) {
     if (layer->tex) {
         glDeleteTextures(1, &layer->tex);
     }
-    free(layer);
+    KORE_FREE(layer);
 }
 
 void gfx_layer_set_enabled(GfxLayer* layer, bool enabled) {
@@ -720,18 +721,18 @@ bool gfx_layer_is_enabled(const GfxLayer* layer) {
     return layer ? layer->enabled : false;
 }
 
-void gfx_layer_update_pixels(GfxLayer* layer, const uint32_t* rgba_pixels) {
+void gfx_layer_update_pixels(GfxLayer* layer, const u32* rgba_pixels) {
     if (!layer || !rgba_pixels) {
         return;
     }
-    size_t size = (size_t)layer->w * (size_t)layer->h * sizeof(uint32_t);
+    size_t size = (size_t)layer->w * (size_t)layer->h * sizeof(u32);
     memcpy(layer->pixels, rgba_pixels, size);
 }
 
 bool gfx_layer_resize(GfxLayer* layer,
                       int new_w,
                       int new_h,
-                      const uint32_t* rgba_pixels) {
+                      const u32* rgba_pixels) {
     if (!layer || new_w <= 0 || new_h <= 0) {
         return false;
     }
@@ -740,7 +741,7 @@ bool gfx_layer_resize(GfxLayer* layer,
         layer->pbo    = 0;
     }
     if (layer->pixels) {
-        free(layer->pixels);
+        KORE_ARRAY_FREE(layer->pixels);
         layer->pixels = NULL;
     }
     if (layer->tex) {
@@ -762,7 +763,7 @@ bool gfx_layer_resize(GfxLayer* layer,
 
 int gfx_layer_get_width(const GfxLayer* layer) { return layer ? layer->w : 0; }
 int gfx_layer_get_height(const GfxLayer* layer) { return layer ? layer->h : 0; }
-uint32_t* gfx_layer_get_pixels(GfxLayer* layer) {
+u32* gfx_layer_get_pixels(GfxLayer* layer) {
     return layer ? layer->pixels : NULL;
 }
 
@@ -799,7 +800,7 @@ void gfx_render(GfxLayer** layers,
             continue;
         }
 
-        size_t size = (size_t)L->w * (size_t)L->h * sizeof(uint32_t);
+        size_t size = (size_t)L->w * (size_t)L->h * sizeof(u32);
         glBindTexture(GL_TEXTURE_2D, L->tex);
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, L->pbo);
         glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, (GLsizeiptr)size, L->pixels);
