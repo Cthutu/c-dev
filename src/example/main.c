@@ -66,19 +66,47 @@ int kmain(int argc, char** argv) {
     TimePoint start     = time_now();
     TimePoint fps_timer = start;
     f64 current_fps     = 0.0;
+    bool fullscreen     = false;
 
     // Main loop
     while (frame_loop(&main_frame)) {
-        TimePoint now   = time_now();
-        TimeDuration dt = time_elapsed(start, now);
-        f64 t           = time_secs(dt);
-        render_demo(layer_pixels, layer_w, layer_h, t);
+        FrameEvent ev = frame_event_poll(&main_frame);
 
-        // Report FPS every 5 seconds
-        if (time_secs(time_elapsed(fps_timer, now)) >= 5.0) {
-            current_fps = frame_fps(&main_frame);
-            eprn("Current FPS: %.2f", current_fps);
-            fps_timer = now;
+        switch (ev.type) {
+        case FRAME_EVENT_NONE:
+            TimePoint now   = time_now();
+            TimeDuration dt = time_elapsed(start, now);
+            f64 t           = time_secs(dt);
+            render_demo(layer_pixels, layer_w, layer_h, t);
+
+            // Report FPS every 5 seconds
+            if (time_secs(time_elapsed(fps_timer, now)) >= 5.0) {
+                current_fps = frame_fps(&main_frame);
+                eprn("Current FPS: %.2f", current_fps);
+                fps_timer = now;
+            }
+            break;
+
+        case FRAME_EVENT_KEY_DOWN:
+            switch (ev.key.keycode) {
+            case KEY_ESCAPE:
+                frame_done(&main_frame);
+                break;
+
+            case KEY_ENTER:
+                if (frame_event_is_alt_pressed(&ev)) {
+                    fullscreen = !fullscreen;
+                    frame_fullscreen(&main_frame, fullscreen);
+                }
+                break;
+
+            default:
+                break;
+            }
+            break;
+
+        default:
+            break;
         }
     }
 
