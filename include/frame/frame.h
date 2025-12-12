@@ -1242,6 +1242,33 @@ static LRESULT CALLBACK WindowProc(HWND hwnd,
         }
         return 0;
 
+    case WM_SIZE:
+        if (!f) {
+            return DefWindowProc(hwnd, msg, wParam, lParam);
+        }
+        if (wParam != SIZE_MINIMIZED) {
+            int new_w = LOWORD(lParam);
+            int new_h = HIWORD(lParam);
+            if (new_w != f->width || new_h != f->height) {
+                f->width = new_w;
+                f->height = new_h;
+                FrameEvent ev = {.type = FRAME_EVENT_RESIZE};
+                frame_event_enqueue(f, ev);
+            }
+        }
+        return 0;
+
+    case WM_ACTIVATEAPP:
+        if (!f) {
+            return DefWindowProc(hwnd, msg, wParam, lParam);
+        }
+        {
+            FrameEvent ev = {.type = wParam ? FRAME_EVENT_RESUME
+                                            : FRAME_EVENT_SUSPEND};
+            frame_event_enqueue(f, ev);
+        }
+        return 0;
+
     default:
         return DefWindowProc(hwnd, msg, wParam, lParam);
     }
