@@ -73,8 +73,8 @@ int kmain(int argc, char** argv) {
         render_demo(layer_pixels, layer_w, layer_h, t);
 
         // Optionally print FPS
-        // f64 fps = frame_fps(&main_frame);
-        // eprn("Current FPS: %.2f", fps); // Uncomment to see FPS in console
+        f64 fps = frame_fps(&main_frame);
+        eprn("Current FPS: %.2f", fps); // Uncomment to see FPS in console
     }
 
     frame_free_pixels_layer(layer_pixels);

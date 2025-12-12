@@ -45,11 +45,12 @@ void gfx_layer_update_pixels(GfxLayer* layer, const uint32_t* rgba_pixels);
 bool gfx_layer_resize(GfxLayer* layer,
                       int new_w,
                       int new_h,
-                      const u32* rgba_pixels);
+                      const uint32_t* rgba_pixels);
 
 // Accessors
 int gfx_layer_get_width(const GfxLayer* layer);
 int gfx_layer_get_height(const GfxLayer* layer);
+uint32_t* gfx_layer_get_pixels(GfxLayer* layer);
 
 // Render ordered list of layers (front-most last) to current framebuffer of
 // given window size.
@@ -95,6 +96,7 @@ void gfx_render(GfxLayer** layers,
 
 #    include <math.h>
 #    include <stdlib.h>
+#    include <string.h>
 
 #    if KORE_OS_WINDOWS
 #        define APIENTRYP APIENTRY*
@@ -106,7 +108,8 @@ struct GfxLayer {
     int w, h;
     GLuint tex;
     bool enabled;
-    uint32_t* pixels; // Reference to external pixel buffer
+    GLuint pbo;
+    uint32_t* pixels; // CPU-side pixel buffer (returned to caller)
 };
 
 // Single shared shader & geometry
@@ -133,6 +136,7 @@ static HMODULE g_gl_lib    = NULL;
 #        if KORE_OS_WINDOWS
 typedef char GLchar;
 typedef ptrdiff_t GLsizeiptr;
+typedef ptrdiff_t GLintptr;
 typedef GLuint(APIENTRYP PFNGLCREATESHADERPROC)(GLenum);
 typedef void(APIENTRYP PFNGLSHADERSOURCEPROC)(GLuint,
                                               GLsizei,
@@ -164,6 +168,12 @@ typedef void(APIENTRYP PFNGLBUFFERDATAPROC)(GLenum,
                                             const void*,
                                             GLenum);
 typedef void(APIENTRYP PFNGLDELETEBUFFERSPROC)(GLsizei, const GLuint*);
+typedef void*(APIENTRYP PFNGLMAPBUFFERRANGEPROC)(GLenum,
+                                                 GLintptr,
+                                                 GLsizeiptr,
+                                                 GLbitfield);
+typedef void*(APIENTRYP PFNGLMAPBUFFERPROC)(GLenum, GLenum);
+typedef GLboolean(APIENTRYP PFNGLUNMAPBUFFERPROC)(GLenum);
 typedef void(APIENTRYP PFNGLGENVERTEXARRAYSPROC)(GLsizei, GLuint*);
 typedef void(APIENTRYP PFNGLBINDVERTEXARRAYPROC)(GLuint);
 typedef void(APIENTRYP PFNGLDELETEVERTEXARRAYSPROC)(GLsizei, const GLuint*);
@@ -194,6 +204,9 @@ static PFNGLDELETEBUFFERSPROC p_glDeleteBuffers                     = NULL;
 static PFNGLGENVERTEXARRAYSPROC p_glGenVertexArrays                 = NULL;
 static PFNGLBINDVERTEXARRAYPROC p_glBindVertexArray                 = NULL;
 static PFNGLDELETEVERTEXARRAYSPROC p_glDeleteVertexArrays           = NULL;
+static PFNGLMAPBUFFERRANGEPROC p_glMapBufferRange                   = NULL;
+static PFNGLMAPBUFFERPROC p_glMapBuffer                             = NULL;
+static PFNGLUNMAPBUFFERPROC p_glUnmapBuffer                         = NULL;
 
 // Macro to redirect calls in rest of file to loaded pointers
 #        define glCreateShader p_glCreateShader
@@ -220,6 +233,9 @@ static PFNGLDELETEVERTEXARRAYSPROC p_glDeleteVertexArrays           = NULL;
 #        define glGenVertexArrays p_glGenVertexArrays
 #        define glBindVertexArray p_glBindVertexArray
 #        define glDeleteVertexArrays p_glDeleteVertexArrays
+#        define glMapBufferRange p_glMapBufferRange
+#        define glMapBuffer p_glMapBuffer
+#        define glUnmapBuffer p_glUnmapBuffer
 
 #        ifndef GL_COMPILE_STATUS
 #            define GL_COMPILE_STATUS 0x8B81
@@ -244,6 +260,18 @@ static PFNGLDELETEVERTEXARRAYSPROC p_glDeleteVertexArrays           = NULL;
 #        endif
 #        ifndef GL_CLAMP_TO_EDGE
 #            define GL_CLAMP_TO_EDGE 0x812F
+#        endif
+#        ifndef GL_MAP_WRITE_BIT
+#            define GL_MAP_WRITE_BIT 0x0002
+#        endif
+#        ifndef GL_MAP_INVALIDATE_BUFFER_BIT
+#            define GL_MAP_INVALIDATE_BUFFER_BIT 0x0008
+#        endif
+#        ifndef GL_MAP_UNSYNCHRONIZED_BIT
+#            define GL_MAP_UNSYNCHRONIZED_BIT 0x0020
+#        endif
+#        ifndef GL_STREAM_DRAW
+#            define GL_STREAM_DRAW 0x88E0
 #        endif
 
 #        if KORE_OS_WINDOWS
@@ -289,10 +317,14 @@ static bool gfx_load_gl_functions(void) {
     LOAD_GL(glBindBuffer);
     LOAD_GL(glBufferData);
     LOAD_GL(glDeleteBuffers);
+    LOAD_GL(glMapBuffer);
+    LOAD_GL(glUnmapBuffer);
     // VAO functions are optional
     p_glGenVertexArrays    = gfx_get_proc("glGenVertexArrays");
     p_glBindVertexArray    = gfx_get_proc("glBindVertexArray");
     p_glDeleteVertexArrays = gfx_get_proc("glDeleteVertexArrays");
+    // MapBufferRange is optional (GL 3.0 / ARB_map_buffer_range)
+    p_glMapBufferRange = gfx_get_proc("glMapBufferRange");
 #        undef LOAD_GL
     return true;
 }
@@ -542,6 +574,8 @@ bool gfx_init(void) {
                               (const void*)(sizeof(float) * 2));
     }
 
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+
     g_inited = true;
     return true;
 }
@@ -580,7 +614,7 @@ void gfx_shutdown(void) {
     g_inited = false;
 }
 
-static GLuint create_texture(int w, int h, const uint32_t* pixels) {
+static GLuint create_texture(int w, int h) {
     GLuint tex;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
@@ -595,9 +629,43 @@ static GLuint create_texture(int w, int h, const uint32_t* pixels) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 #    endif
-    glTexImage2D(
-        GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     return tex;
+}
+
+static bool gfx_layer_init_pbo(GfxLayer* L, const uint32_t* pixels) {
+    size_t size = (size_t)L->w * (size_t)L->h * sizeof(uint32_t);
+    glGenBuffers(1, &L->pbo);
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, L->pbo);
+    glBufferData(GL_PIXEL_UNPACK_BUFFER, (GLsizeiptr)size, NULL, GL_STREAM_DRAW);
+
+    L->pixels = (uint32_t*)malloc(size);
+    if (!L->pixels) {
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        glDeleteBuffers(1, &L->pbo);
+        L->pbo = 0;
+        return false;
+    }
+    if (pixels) {
+        memcpy(L->pixels, pixels, size);
+    } else {
+        memset(L->pixels, 0, size);
+    }
+
+    glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, (GLsizeiptr)size, L->pixels);
+    glBindTexture(GL_TEXTURE_2D, L->tex);
+    glTexSubImage2D(GL_TEXTURE_2D,
+                    0,
+                    0,
+                    0,
+                    L->w,
+                    L->h,
+                    GL_RGBA,
+                    GL_UNSIGNED_BYTE,
+                    0);
+
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+    return true;
 }
 
 GfxLayer* gfx_layer_create(int width, int height, const uint32_t* rgba_pixels) {
@@ -611,14 +679,30 @@ GfxLayer* gfx_layer_create(int width, int height, const uint32_t* rgba_pixels) {
     L->w       = width;
     L->h       = height;
     L->enabled = true;
-    L->pixels  = (uint32_t*)rgba_pixels; // Store reference to pixel buffer
-    L->tex     = create_texture(width, height, rgba_pixels);
+    L->tex     = create_texture(width, height);
+    if (!L->tex) {
+        free(L);
+        return NULL;
+    }
+    if (!gfx_layer_init_pbo(L, rgba_pixels)) {
+        if (L->tex) {
+            glDeleteTextures(1, &L->tex);
+        }
+        free(L);
+        return NULL;
+    }
     return L;
 }
 
 void gfx_layer_destroy(GfxLayer* layer) {
     if (!layer) {
         return;
+    }
+    if (layer->pixels) {
+        free(layer->pixels);
+    }
+    if (layer->pbo) {
+        glDeleteBuffers(1, &layer->pbo);
     }
     if (layer->tex) {
         glDeleteTextures(1, &layer->tex);
@@ -640,16 +724,8 @@ void gfx_layer_update_pixels(GfxLayer* layer, const uint32_t* rgba_pixels) {
     if (!layer || !rgba_pixels) {
         return;
     }
-    glBindTexture(GL_TEXTURE_2D, layer->tex);
-    glTexSubImage2D(GL_TEXTURE_2D,
-                    0,
-                    0,
-                    0,
-                    layer->w,
-                    layer->h,
-                    GL_RGBA,
-                    GL_UNSIGNED_BYTE,
-                    rgba_pixels);
+    size_t size = (size_t)layer->w * (size_t)layer->h * sizeof(uint32_t);
+    memcpy(layer->pixels, rgba_pixels, size);
 }
 
 bool gfx_layer_resize(GfxLayer* layer,
@@ -659,18 +735,36 @@ bool gfx_layer_resize(GfxLayer* layer,
     if (!layer || new_w <= 0 || new_h <= 0) {
         return false;
     }
+    if (layer->pbo) {
+        glDeleteBuffers(1, &layer->pbo);
+        layer->pbo    = 0;
+    }
+    if (layer->pixels) {
+        free(layer->pixels);
+        layer->pixels = NULL;
+    }
     if (layer->tex) {
         glDeleteTextures(1, &layer->tex);
     }
-    layer->w      = new_w;
-    layer->h      = new_h;
-    layer->pixels = (uint32_t*)rgba_pixels; // Update pixel buffer reference
-    layer->tex    = create_texture(new_w, new_h, rgba_pixels);
-    return layer->tex != 0;
+    layer->w   = new_w;
+    layer->h   = new_h;
+    layer->tex = create_texture(new_w, new_h);
+    if (!layer->tex) {
+        return false;
+    }
+    if (!gfx_layer_init_pbo(layer, rgba_pixels)) {
+        glDeleteTextures(1, &layer->tex);
+        layer->tex = 0;
+        return false;
+    }
+    return true;
 }
 
 int gfx_layer_get_width(const GfxLayer* layer) { return layer ? layer->w : 0; }
 int gfx_layer_get_height(const GfxLayer* layer) { return layer ? layer->h : 0; }
+uint32_t* gfx_layer_get_pixels(GfxLayer* layer) {
+    return layer ? layer->pixels : NULL;
+}
 
 // ---------- Rendering ----------
 
@@ -701,14 +795,23 @@ void gfx_render(GfxLayer** layers,
 
     for (int i = 0; i < layer_count; ++i) {
         GfxLayer* L = layers[i];
-        if (!L || !L->enabled) {
+        if (!L || !L->enabled || !L->pbo || !L->tex) {
             continue;
         }
 
-        // Update texture with current pixel data
-        if (L->pixels) {
-            gfx_layer_update_pixels(L, L->pixels);
-        }
+        size_t size = (size_t)L->w * (size_t)L->h * sizeof(uint32_t);
+        glBindTexture(GL_TEXTURE_2D, L->tex);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, L->pbo);
+        glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, (GLsizeiptr)size, L->pixels);
+        glTexSubImage2D(GL_TEXTURE_2D,
+                        0,
+                        0,
+                        0,
+                        L->w,
+                        L->h,
+                        GL_RGBA,
+                        GL_UNSIGNED_BYTE,
+                        0);
 
         float scale_w   = (float)window_width / (float)L->w;
         float scale_h   = (float)window_height / (float)L->h;
@@ -769,6 +872,8 @@ void gfx_render(GfxLayer** layers,
 
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
+
+    glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
 //------------------------------------------------------------------------------

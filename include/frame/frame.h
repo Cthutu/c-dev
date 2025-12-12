@@ -218,6 +218,36 @@ Frame frame_open(int width, int height, cstr title) {
         exit(EXIT_FAILURE);
     }
 
+    // Disable vsync to expose raw throughput (if supported)
+    {
+        typedef void (*PFNGLXSWAPINTERVALEXTPROC)(
+            Display*, GLXDrawable, int);
+        typedef int (*PFNGLXSWAPINTERVALMESAPROC)(unsigned int);
+        typedef int (*PFNGLXSWAPINTERVALSGIPROC)(int);
+
+        PFNGLXSWAPINTERVALEXTPROC glXSwapIntervalEXT =
+            (PFNGLXSWAPINTERVALEXTPROC)glXGetProcAddress(
+                (const GLubyte*)"glXSwapIntervalEXT");
+        GLXDrawable drawable = glXGetCurrentDrawable();
+        if (glXSwapIntervalEXT && drawable) {
+            glXSwapIntervalEXT(f.display, drawable, 0);
+        } else {
+            PFNGLXSWAPINTERVALMESAPROC glXSwapIntervalMESA =
+                (PFNGLXSWAPINTERVALMESAPROC)glXGetProcAddress(
+                    (const GLubyte*)"glXSwapIntervalMESA");
+            if (glXSwapIntervalMESA) {
+                glXSwapIntervalMESA(0);
+            } else {
+                PFNGLXSWAPINTERVALSGIPROC glXSwapIntervalSGI =
+                    (PFNGLXSWAPINTERVALSGIPROC)glXGetProcAddress(
+                        (const GLubyte*)"glXSwapIntervalSGI");
+                if (glXSwapIntervalSGI) {
+                    glXSwapIntervalSGI(0);
+                }
+            }
+        }
+    }
+
     if (!gfx_init()) {
         eprn("Failed to initialize graphics system");
         frame_cleanup(&f);
@@ -449,15 +479,13 @@ bool frame_loop(Frame* f) {
 // Common frame functions
 
 u32* frame_add_pixels_layer(Frame* f, int width, int height) {
-    u32* pixels     = KORE_ARRAY_ALLOC(u32, width * height);
-    GfxLayer* layer = gfx_layer_create(width, height, pixels);
+    GfxLayer* layer = gfx_layer_create(width, height, NULL);
     if (!layer) {
         eprn("Failed to create graphics layer");
-        free(pixels);
         return NULL;
     }
     array_push(f->layers, layer);
-    return pixels;
+    return (u32*)gfx_layer_get_pixels(layer);
 }
 
 f64 frame_fps(Frame* f) {
@@ -484,7 +512,9 @@ f64 frame_fps(Frame* f) {
     return f->fps;
 }
 
-void frame_free_pixels_layer(u32* pixels) { KORE_ARRAY_FREE(pixels); }
+void frame_free_pixels_layer(u32* pixels) {
+    KORE_UNUSED(pixels); // Layer teardown happens in frame_cleanup
+}
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
