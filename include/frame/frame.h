@@ -331,6 +331,7 @@ typedef struct {
     int width;
     int height;
     Array(GfxLayer*) layers;
+    bool done;
 
     // FPS Tracking
     TimePoint last_time;
@@ -363,6 +364,7 @@ typedef struct {
 
 Frame frame_open(int width, int height, cstr title);
 bool frame_loop(Frame* f);
+void frame_done(Frame* f);
 u32* frame_add_pixels_layer(Frame* f, int width, int height);
 f64 frame_fps(Frame* f);
 
@@ -455,6 +457,7 @@ Frame frame_open(int width, int height, cstr title) {
         .title       = title,
         .width       = width,
         .height      = height,
+        .done        = false,
         .last_time   = 0,
         .frame_count = 0,
         .fps         = 0.0,
@@ -611,6 +614,14 @@ Frame frame_open(int width, int height, cstr title) {
 }
 
 bool frame_loop(Frame* f) {
+    if (!f || f->done) {
+        if (f) {
+            frame_cleanup(f);
+            array_free(f->events);
+        }
+        return false;
+    }
+
     XEvent event;
     bool running = true;
 
@@ -846,6 +857,14 @@ Frame frame_open(int width, int height, const char* title) {
 }
 
 bool frame_loop(Frame* f) {
+    if (!f || f->done) {
+        if (f) {
+            frame_cleanup(f);
+            array_free(f->events);
+        }
+        return false;
+    }
+
     MSG msg;
     while (PeekMessage(&msg, NULL, 0, 0, PM_REMOVE)) {
         if (msg.message == WM_QUIT) {
@@ -934,6 +953,14 @@ void frame_fullscreen(Frame* f, bool enable) {
 
 //------------------------------------------------------------------------------
 // Common frame functions
+
+void frame_done(Frame* f) {
+    if (!f) {
+        return;
+    }
+    f->done = true;
+}
+
 u32* frame_add_pixels_layer(Frame* f, int width, int height) {
     GfxLayer* layer = gfx_layer_create(width, height, NULL);
     if (!layer) {
