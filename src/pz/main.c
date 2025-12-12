@@ -6,10 +6,11 @@ int kmain(int argc, char** argv) {
     KORE_UNUSED(argc);
     KORE_UNUSED(argv);
 
-    Frame main_frame = frame_open(800, 600, "Pixelf Zombie");
-    u32* pixels      = frame_add_pixels_layer(&main_frame, 400, 300);
+    Frame main_frame    = frame_open(800, 600, "Pixelf Zombie");
+    u32* pixels         = frame_add_pixels_layer(&main_frame, 400, 300);
 
-    random_seed(time_now());
+    TimePoint fps_timer = time_now();
+    random_seed(fps_timer);
 
     while (frame_loop(&main_frame)) {
         // Example: Fill the pixel layer with a color gradient
@@ -29,6 +30,11 @@ int kmain(int argc, char** argv) {
             break;
         default:
             break;
+        }
+
+        if (time_secs(time_elapsed(fps_timer, time_now())) >= 5.0) {
+            fps_timer = time_now();
+            prn("FPS: %.2f", frame_fps(&main_frame));
         }
     }
 
