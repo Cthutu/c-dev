@@ -983,6 +983,145 @@ static void frame_cleanup(Frame* f) {
     }
 }
 
+internal inline FrameKey frame_win32_vk_to_key(WPARAM vk) {
+    if (vk >= 'A' && vk <= 'Z') {
+        return (FrameKey)(KEY_A + (vk - 'A'));
+    }
+    if (vk >= '0' && vk <= '9') {
+        return vk == '0' ? KEY_0 : (FrameKey)(KEY_1 + (vk - '1'));
+    }
+    if (vk >= VK_F1 && vk <= VK_F24) {
+        return (FrameKey)(KEY_F1 + (vk - VK_F1));
+    }
+    if (vk >= VK_NUMPAD0 && vk <= VK_NUMPAD9) {
+        return (FrameKey)(KEY_KP_0 + (vk - VK_NUMPAD0));
+    }
+
+    switch (vk) {
+    case VK_RETURN:
+        return KEY_ENTER;
+    case VK_ESCAPE:
+        return KEY_ESCAPE;
+    case VK_BACK:
+        return KEY_BACKSPACE;
+    case VK_TAB:
+        return KEY_TAB;
+    case VK_SPACE:
+        return KEY_SPACE;
+
+    case VK_OEM_MINUS:
+        return KEY_MINUS;
+    case VK_OEM_PLUS:
+        return KEY_EQUALS;
+    case VK_OEM_4:
+        return KEY_LEFTBRACKET;
+    case VK_OEM_6:
+        return KEY_RIGHTBRACKET;
+    case VK_OEM_5:
+        return KEY_BACKSLASH;
+    case VK_OEM_1:
+        return KEY_SEMICOLON;
+    case VK_OEM_7:
+        return KEY_APOSTROPHE;
+    case VK_OEM_3:
+        return KEY_GRAVE;
+    case VK_OEM_COMMA:
+        return KEY_COMMA;
+    case VK_OEM_PERIOD:
+        return KEY_PERIOD;
+    case VK_OEM_2:
+        return KEY_SLASH;
+
+    case VK_CAPITAL:
+        return KEY_CAPSLOCK;
+    case VK_SNAPSHOT:
+        return KEY_PRINTSCREEN;
+    case VK_SCROLL:
+        return KEY_SCROLLLOCK;
+    case VK_PAUSE:
+        return KEY_PAUSE;
+    case VK_INSERT:
+        return KEY_INSERT;
+    case VK_DELETE:
+        return KEY_DELETE;
+    case VK_HOME:
+        return KEY_HOME;
+    case VK_END:
+        return KEY_END;
+    case VK_PRIOR:
+        return KEY_PAGEUP;
+    case VK_NEXT:
+        return KEY_PAGEDOWN;
+
+    case VK_LEFT:
+        return KEY_LEFT;
+    case VK_RIGHT:
+        return KEY_RIGHT;
+    case VK_UP:
+        return KEY_UP;
+    case VK_DOWN:
+        return KEY_DOWN;
+
+    case VK_NUMLOCK:
+        return KEY_NUMLOCKCLEAR;
+    case VK_DIVIDE:
+        return KEY_KP_DIVIDE;
+    case VK_MULTIPLY:
+        return KEY_KP_MULTIPLY;
+    case VK_SUBTRACT:
+        return KEY_KP_MINUS;
+    case VK_ADD:
+        return KEY_KP_PLUS;
+    case VK_DECIMAL:
+        return KEY_KP_PERIOD;
+
+    case VK_LSHIFT:
+        return KEY_LSHIFT;
+    case VK_RSHIFT:
+        return KEY_RSHIFT;
+    case VK_LCONTROL:
+        return KEY_LCTRL;
+    case VK_RCONTROL:
+        return KEY_RCTRL;
+    case VK_LMENU:
+        return KEY_LALT;
+    case VK_RMENU:
+        return KEY_RALT;
+    case VK_LWIN:
+        return KEY_LGUI;
+    case VK_RWIN:
+        return KEY_RGUI;
+    case VK_APPS:
+        return KEY_MENU;
+
+    default:
+        return KEY_UNKNOWN;
+    }
+}
+
+internal inline FrameKeyShift frame_win32_modifiers(void) {
+    FrameKeyShift mods = 0;
+    if (GetKeyState(VK_LSHIFT) & 0x8000) {
+        mods |= KEY_SHIFT_LEFT;
+    }
+    if (GetKeyState(VK_RSHIFT) & 0x8000) {
+        mods |= KEY_SHIFT_RIGHT;
+    }
+    if (GetKeyState(VK_LCONTROL) & 0x8000) {
+        mods |= KEY_CTRL_LEFT;
+    }
+    if (GetKeyState(VK_RCONTROL) & 0x8000) {
+        mods |= KEY_CTRL_RIGHT;
+    }
+    if (GetKeyState(VK_LMENU) & 0x8000) {
+        mods |= KEY_ALT_LEFT;
+    }
+    if (GetKeyState(VK_RMENU) & 0x8000) {
+        mods |= KEY_ALT_RIGHT;
+    }
+    return mods;
+}
+
 static LRESULT CALLBACK WindowProc(HWND hwnd,
                                    UINT msg,
                                    WPARAM wParam,
@@ -1003,17 +1142,94 @@ static LRESULT CALLBACK WindowProc(HWND hwnd,
         PostQuitMessage(0);
         break;
 
+    case WM_KEYDOWN:
+    case WM_SYSKEYDOWN:
+    case WM_KEYUP:
+    case WM_SYSKEYUP:
+        if (!f) {
+            return DefWindowProc(hwnd, msg, wParam, lParam);
+        }
+        {
+            FrameEvent ev = {.type = (msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN)
+                                         ? FRAME_EVENT_KEY_DOWN
+                                         : FRAME_EVENT_KEY_UP};
+            ev.key.keycode   = frame_win32_vk_to_key(wParam);
+            ev.key.shift     = frame_win32_modifiers();
+            ev.key.character = 0;
+
+            if (ev.type == FRAME_EVENT_KEY_DOWN) {
+                UINT ch = MapVirtualKeyA((UINT)wParam, MAPVK_VK_TO_CHAR);
+                if (ch && !(ch & 0x80000000)) {
+                    ev.key.character = ch & 0xFFFF;
+                }
+            }
+            frame_event_enqueue(f, ev);
+        }
+        return 0;
+
+    case WM_MOUSEMOVE:
+    case WM_LBUTTONDOWN:
+    case WM_LBUTTONUP:
+    case WM_RBUTTONDOWN:
+    case WM_RBUTTONUP:
+    case WM_MBUTTONDOWN:
+    case WM_MBUTTONUP:
+        if (!f) {
+            return DefWindowProc(hwnd, msg, wParam, lParam);
+        }
+        {
+            FrameEvent ev   = {0};
+            ev.mouse.x      = GET_X_LPARAM(lParam);
+            ev.mouse.y      = GET_Y_LPARAM(lParam);
+            ev.mouse.button = 0;
+
+            switch (msg) {
+            case WM_MOUSEMOVE:
+                ev.type = FRAME_EVENT_MOUSE_MOVE;
+                break;
+            case WM_LBUTTONDOWN:
+            case WM_LBUTTONUP:
+                ev.type         = (msg == WM_LBUTTONDOWN)
+                                      ? FRAME_EVENT_MOUSE_BUTTON_DOWN
+                                      : FRAME_EVENT_MOUSE_BUTTON_UP;
+                ev.mouse.button = MOUSE_BUTTON_LEFT;
+                break;
+            case WM_RBUTTONDOWN:
+            case WM_RBUTTONUP:
+                ev.type         = (msg == WM_RBUTTONDOWN)
+                                      ? FRAME_EVENT_MOUSE_BUTTON_DOWN
+                                      : FRAME_EVENT_MOUSE_BUTTON_UP;
+                ev.mouse.button = MOUSE_BUTTON_RIGHT;
+                break;
+            case WM_MBUTTONDOWN:
+            case WM_MBUTTONUP:
+                ev.type         = (msg == WM_MBUTTONDOWN)
+                                      ? FRAME_EVENT_MOUSE_BUTTON_DOWN
+                                      : FRAME_EVENT_MOUSE_BUTTON_UP;
+                ev.mouse.button = MOUSE_BUTTON_MIDDLE;
+                break;
+            default:
+                break;
+            }
+
+            if (ev.type != FRAME_EVENT_NONE) {
+                frame_event_enqueue(f, ev);
+            }
+        }
+        return 0;
+
     default:
         return DefWindowProc(hwnd, msg, wParam, lParam);
     }
     return 0;
 }
 
-Frame frame_open(int width, int height, const char* title) {
+Frame frame_open(int width, int height, bool resizable, const char* title) {
     Frame f = {
         .title       = title,
         .width       = width,
         .height      = height,
+        .resizable   = resizable,
         .last_time   = 0,
         .frame_count = 0,
         .fps         = 0.0,
