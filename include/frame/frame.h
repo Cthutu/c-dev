@@ -15,6 +15,10 @@
 #    include <GL/glx.h>
 #    include <X11/Xlib.h>
 #    include <X11/Xutil.h>
+#    include <X11/keysym.h>
+#elif KORE_OS_WINDOWS
+#    include <windows.h>
+#    include <windowsx.h>
 #endif // KORE_OS_LINUX
 
 //------------------------------------------------------------------------------
@@ -1063,6 +1067,10 @@ bool frame_loop(Frame* f) {
             array_free(f->events);
         }
         return false;
+    }
+
+    if (f->hwnd) {
+        SetWindowLongPtr(f->hwnd, GWLP_USERDATA, (LONG_PTR)f);
     }
 
     MSG msg;
