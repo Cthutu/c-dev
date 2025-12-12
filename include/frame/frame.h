@@ -53,6 +53,8 @@ bool frame_loop(Frame* w);
 u32* frame_add_pixels_layer(Frame* w, int width, int height);
 f64 frame_fps(Frame* w);
 
+void frame_fullscreen(Frame* w, bool enable);
+
 //------------------------------------------------------------------------------
 // Clean up API
 
@@ -124,12 +126,12 @@ internal void frame_cleanup(Frame* f) {
 
 Frame frame_open(int width, int height, cstr title) {
     Frame f = {
-        .title  = title,
-        .width  = width,
-        .height = height,
-        .last_time = 0,
+        .title       = title,
+        .width       = width,
+        .height      = height,
+        .last_time   = 0,
         .frame_count = 0,
-        .fps = 0.0,
+        .fps         = 0.0,
     };
 
     f.display = XOpenDisplay(NULL);
@@ -240,8 +242,7 @@ Frame frame_open(int width, int height, cstr title) {
 
     // Disable vsync to expose raw throughput (if supported)
     {
-        typedef void (*PFNGLXSWAPINTERVALEXTPROC)(
-            Display*, GLXDrawable, int);
+        typedef void (*PFNGLXSWAPINTERVALEXTPROC)(Display*, GLXDrawable, int);
         typedef int (*PFNGLXSWAPINTERVALMESAPROC)(unsigned int);
         typedef int (*PFNGLXSWAPINTERVALSGIPROC)(int);
 
@@ -334,6 +335,39 @@ bool frame_loop(Frame* f) {
     return true;
 }
 
+void frame_fullscreen(Frame* f, bool enable) {
+    if (!f || !f->display || !f->window) {
+        return;
+    }
+
+    static Atom wm_state           = None;
+    static Atom fullscreen_atom    = None;
+    if (wm_state == None) {
+        wm_state = XInternAtom(f->display, "_NET_WM_STATE", False);
+    }
+    if (fullscreen_atom == None) {
+        fullscreen_atom =
+            XInternAtom(f->display, "_NET_WM_STATE_FULLSCREEN", False);
+    }
+
+    XEvent xev       = {0};
+    xev.type         = ClientMessage;
+    xev.xclient.window = f->window;
+    xev.xclient.message_type = wm_state;
+    xev.xclient.format       = 32;
+    xev.xclient.data.l[0]    = enable ? 1 : 0; // _NET_WM_STATE_ADD / REMOVE
+    xev.xclient.data.l[1]    = fullscreen_atom;
+    xev.xclient.data.l[2]    = 0;
+    xev.xclient.data.l[3]    = 1; // normal source
+
+    XSendEvent(f->display,
+               DefaultRootWindow(f->display),
+               False,
+               SubstructureRedirectMask | SubstructureNotifyMask,
+               &xev);
+    XFlush(f->display);
+}
+
 //------------------------------------------------------------------------------
 // Windows implementation
 
@@ -390,12 +424,12 @@ static LRESULT CALLBACK WindowProc(HWND hwnd,
 
 Frame frame_open(int width, int height, const char* title) {
     Frame f = {
-        .title  = title,
-        .width  = width,
-        .height = height,
-        .last_time = 0,
+        .title       = title,
+        .width       = width,
+        .height      = height,
+        .last_time   = 0,
         .frame_count = 0,
-        .fps = 0.0,
+        .fps         = 0.0,
     };
 
     HINSTANCE instance = GetModuleHandle(NULL);
@@ -514,6 +548,54 @@ bool frame_loop(Frame* f) {
     return true;
 }
 
+void frame_fullscreen(Frame* f, bool enable) {
+    if (!f || !f->hwnd) {
+        return;
+    }
+
+    static WINDOWPLACEMENT prev_wp = {.length = sizeof(WINDOWPLACEMENT)};
+    static DWORD prev_style        = 0;
+    static DWORD prev_ex_style     = 0;
+    static bool is_fullscreen      = false;
+
+    if (enable && !is_fullscreen) {
+        prev_style    = (DWORD)GetWindowLongPtr(f->hwnd, GWL_STYLE);
+        prev_ex_style = (DWORD)GetWindowLongPtr(f->hwnd, GWL_EXSTYLE);
+        prev_wp.length = sizeof(prev_wp);
+        GetWindowPlacement(f->hwnd, &prev_wp);
+
+        MONITORINFO mi = {.cbSize = sizeof(mi)};
+        if (GetMonitorInfo(MonitorFromWindow(f->hwnd, MONITOR_DEFAULTTONEAREST),
+                           &mi)) {
+            SetWindowLongPtr(
+                f->hwnd, GWL_STYLE, prev_style & ~WS_OVERLAPPEDWINDOW);
+            SetWindowLongPtr(
+                f->hwnd, GWL_EXSTYLE, prev_ex_style & ~WS_EX_CLIENTEDGE);
+            SetWindowPos(f->hwnd,
+                         HWND_TOP,
+                         mi.rcMonitor.left,
+                         mi.rcMonitor.top,
+                         mi.rcMonitor.right - mi.rcMonitor.left,
+                         mi.rcMonitor.bottom - mi.rcMonitor.top,
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+            is_fullscreen = true;
+        }
+    } else if (!enable && is_fullscreen) {
+        SetWindowLongPtr(f->hwnd, GWL_STYLE, prev_style);
+        SetWindowLongPtr(f->hwnd, GWL_EXSTYLE, prev_ex_style);
+        SetWindowPlacement(f->hwnd, &prev_wp);
+        SetWindowPos(f->hwnd,
+                     NULL,
+                     0,
+                     0,
+                     0,
+                     0,
+                     SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER |
+                         SWP_NOOWNERZORDER | SWP_FRAMECHANGED);
+        is_fullscreen = false;
+    }
+}
+
 //------------------------------------------------------------------------------
 
 #    else
@@ -532,9 +614,7 @@ u32* frame_add_pixels_layer(Frame* f, int width, int height) {
     return (u32*)gfx_layer_get_pixels(layer);
 }
 
-f64 frame_fps(Frame* f) {
-    return f->fps;
-}
+f64 frame_fps(Frame* f) { return f->fps; }
 
 void frame_free_pixels_layer(u32* pixels) {
     KORE_UNUSED(pixels); // Layer teardown happens in frame_cleanup
