@@ -41,110 +41,169 @@ void draw_filled_circle(
 // Pixel Buffer implementation
 //------------------------------------------------------------------------------
 
-void pixel_buffer_draw_horz_line(
-    DrawContext* ctx_void, int x, int y, int length, u32 colour) {
-    PixelBufferDrawContext* ctx = (PixelBufferDrawContext*)ctx_void;
+static inline int draw_line_outcode(int x, int y, int max_x, int max_y) {
+    int code = 0;
+    if (x < 0) {
+        code |= 1;
+    } else if (x > max_x) {
+        code |= 2;
+    }
 
-    if (length == 0 || y < 0 || y >= ctx->height) {
+    if (y < 0) {
+        code |= 4;
+    } else if (y > max_y) {
+        code |= 8;
+    }
+
+    return code;
+}
+
+void draw_plot(GfxLayer* layer, int x, int y, u32 colour) {
+    if (!layer) {
+        return;
+    }
+    const int width  = gfx_layer_get_width(layer);
+    const int height = gfx_layer_get_height(layer);
+    if (x < 0 || x >= width || y < 0 || y >= height) {
+        return;
+    }
+    u32* pixels       = gfx_layer_get_pixels(layer);
+    pixels[y * width + x] = colour;
+}
+
+void draw_horz_line(
+    GfxLayer* layer, int x, int y, int length, u32 colour) {
+    if (!layer) {
+        return;
+    }
+    const int width  = gfx_layer_get_width(layer);
+    const int height = gfx_layer_get_height(layer);
+    if (length == 0 || y < 0 || y >= height) {
         return;
     }
 
-    const int step     = (length > 0) ? 1 : -1;
-    int remaining      = (length > 0) ? length : -length;
-    int draw_x         = x;
-    const int max_x    = ctx->width - 1;
-    u32* row_start     = ctx->pixel_buffer + (y * ctx->width);
+    const int step  = (length > 0) ? 1 : -1;
+    int remaining   = (length > 0) ? length : -length;
+    int draw_x      = x;
+    const int max_x = width - 1;
+    u32* pixels     = gfx_layer_get_pixels(layer) + (y * width);
     while (remaining--) {
         if (draw_x >= 0 && draw_x <= max_x) {
-            row_start[draw_x] = colour;
+            pixels[draw_x] = colour;
         }
         draw_x += step;
     }
 }
 
-void pixel_buffer_draw_vert_line(
-    DrawContext* ctx_void, int x, int y, int length, u32 colour) {
-    PixelBufferDrawContext* ctx = (PixelBufferDrawContext*)ctx_void;
-
-    if (length == 0 || x < 0 || x >= ctx->width) {
+void draw_vert_line(
+    GfxLayer* layer, int x, int y, int length, u32 colour) {
+    if (!layer) {
+        return;
+    }
+    const int width  = gfx_layer_get_width(layer);
+    const int height = gfx_layer_get_height(layer);
+    if (length == 0 || x < 0 || x >= width) {
         return;
     }
 
-    const int step     = (length > 0) ? 1 : -1;
-    int remaining      = (length > 0) ? length : -length;
-    int draw_y         = y;
-    const int max_y    = ctx->height - 1;
-    u32* col_start     = ctx->pixel_buffer + x;
+    const int step  = (length > 0) ? 1 : -1;
+    int remaining   = (length > 0) ? length : -length;
+    int draw_y      = y;
+    const int max_y = height - 1;
+    u32* pixels     = gfx_layer_get_pixels(layer) + x;
     while (remaining--) {
         if (draw_y >= 0 && draw_y <= max_y) {
-            col_start[draw_y * ctx->width] = colour;
+            pixels[draw_y * width] = colour;
         }
         draw_y += step;
     }
 }
 
-// TODO: Fix this and add clipping against context width and height
-void pixel_buffer_draw_line(
-    DrawContext* ctx_void, int x0, int y0, int x1, int y1, u32 colour) {
+void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour) {
 
-    PixelBufferDrawContext* ctx = (PixelBufferDrawContext*)ctx_void;
-    const int width             = ctx->width;
-    const int height            = ctx->height;
-
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-
-    if (dx == 0) {
-        // Vertical line (exclusive of end point)
-        pixel_buffer_draw_vert_line(ctx_void, x0, y0, dy, colour);
+    if (!layer) {
         return;
     }
-    if (dy == 0) {
-        // Horizontal line (exclusive of end point)
-        pixel_buffer_draw_horz_line(ctx_void, x0, y0, dx, colour);
+    const int width  = gfx_layer_get_width(layer);
+    const int height = gfx_layer_get_height(layer);
+    if (width <= 0 || height <= 0) {
         return;
     }
 
-    int step_x = (dx > 0) ? 1 : -1;
-    int step_y = (dy > 0) ? 1 : -1;
-    dx         = (dx > 0) ? dx : -dx;
-    dy         = (dy > 0) ? dy : -dy;
+    const int max_x = width - 1;
+    const int max_y = height - 1;
 
-    int x = x0;
-    int y = y0;
+    int out0        = draw_line_outcode(x0, y0, max_x, max_y);
+    int out1        = draw_line_outcode(x1, y1, max_x, max_y);
 
-    if (dx >= dy) {
-        int err = dx / 2;
-        for (int i = 0; i < dx; ++i) {
-            if (x >= 0 && x < width && y >= 0 && y < height) {
-                ctx->pixel_buffer[y * width + x] = colour;
-            }
-            x += step_x;
-            err -= dy;
-            if (err < 0) {
-                y += step_y;
-                err += dx;
-            }
+    while (true) {
+        if ((out0 | out1) == 0) {
+            break; // Fully inside
         }
-    } else {
-        int err = dy / 2;
-        for (int i = 0; i < dy; ++i) {
-            if (x >= 0 && x < width && y >= 0 && y < height) {
-                ctx->pixel_buffer[y * width + x] = colour;
-            }
-            y += step_y;
-            err -= dx;
-            if (err < 0) {
-                x += step_x;
-                err += dy;
-            }
+        if (out0 & out1) {
+            return; // Fully outside
+        }
+
+        const int outcode = out0 ? out0 : out1;
+        int clip_x;
+        int clip_y;
+
+        if (outcode & 8) {
+            clip_x = x0 + (x1 - x0) * (max_y - y0) / (y1 - y0);
+            clip_y = max_y;
+        } else if (outcode & 4) {
+            clip_x = x0 + (x1 - x0) * (0 - y0) / (y1 - y0);
+            clip_y = 0;
+        } else if (outcode & 2) {
+            clip_y = y0 + (y1 - y0) * (max_x - x0) / (x1 - x0);
+            clip_x = max_x;
+        } else {
+            clip_y = y0 + (y1 - y0) * (0 - x0) / (x1 - x0);
+            clip_x = 0;
+        }
+
+        if (outcode == out0) {
+            x0   = clip_x;
+            y0   = clip_y;
+            out0 = draw_line_outcode(x0, y0, max_x, max_y);
+        } else {
+            x1   = clip_x;
+            y1   = clip_y;
+            out1 = draw_line_outcode(x1, y1, max_x, max_y);
+        }
+    }
+
+    int dx      = (x1 > x0) ? (x1 - x0) : (x0 - x1);
+    int sx      = (x0 < x1) ? 1 : -1;
+    int dy      = (y1 > y0) ? -(y1 - y0) : -(y0 - y1);
+    int sy      = (y0 < y1) ? 1 : -1;
+    int err     = dx + dy;
+
+    u32* pixels = gfx_layer_get_pixels(layer);
+    const int w = width;
+
+    for (;;) {
+        pixels[y0 * w + x0] = colour;
+
+        if (x0 == x1 && y0 == y1) {
+            break;
+        }
+
+        const int e2 = err << 1;
+        if (e2 >= dy) {
+            err += dy;
+            x0 += sx;
+        }
+        if (e2 <= dx) {
+            err += dx;
+            y0 += sy;
         }
     }
 }
 
-void pixel_buffer_draw_rect(
-    DrawContext* ctx_void, int x, int y, int width, int height, u32 colour) {
-    KORE_UNUSED(ctx_void);
+void draw_rect(
+    GfxLayer* layer, int x, int y, int width, int height, u32 colour) {
+    KORE_UNUSED(layer);
     KORE_UNUSED(x);
     KORE_UNUSED(y);
     KORE_UNUSED(width);
