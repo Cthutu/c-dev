@@ -329,6 +329,7 @@ typedef struct {
             int y;
             MouseButton button;
         } mouse;
+        f64 delta_time; // Available during FRAME_EVENT_NONE
     };
 } FrameEvent;
 
@@ -1569,6 +1570,9 @@ void frame_event_clear(Frame* f) {
 FrameEvent frame_event_poll(Frame* f) {
     FrameEvent ev = {.type = FRAME_EVENT_NONE};
     if (array_count(f->events) == 0) {
+        if (f) {
+            ev.delta_time = time_now() - f->last_time;
+        }
         return ev;
     }
     ev = f->events[0];
