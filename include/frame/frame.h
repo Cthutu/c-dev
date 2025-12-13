@@ -374,8 +374,14 @@ typedef struct {
 Frame frame_open(int width, int height, bool resizable, cstr title);
 bool frame_loop(Frame* f);
 void frame_done(Frame* f);
-u32* frame_add_pixels_layer(Frame* f, int width, int height);
+GfxLayer* frame_add_pixels_layer(Frame* f, int width, int height);
 f64 frame_fps(Frame* f);
+bool frame_map_coords_to_layer(Frame* f,
+                               const GfxLayer* layer,
+                               int window_x,
+                               int window_y,
+                               int* out_layer_x,
+                               int* out_layer_y);
 
 void frame_fullscreen(Frame* f, bool enable);
 
@@ -394,7 +400,7 @@ bool frame_event_is_alt_pressed(const FrameEvent* ev);
 //------------------------------------------------------------------------------
 // Clean up API
 
-void frame_free_pixels_layer(u32* pixels);
+void frame_free_pixels_layer(GfxLayer* layer);
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -645,7 +651,6 @@ internal void frame_cleanup(Frame* f) {
     }
 }
 
-// TODO: Implement the key and mouse events here and for Windows
 Frame frame_open(int width, int height, bool resizable, cstr title) {
     Frame f = {
         .title       = title,
@@ -845,8 +850,8 @@ bool frame_loop(Frame* f) {
         case ConfigureNotify: {
             if (event.xconfigure.width != f->width ||
                 event.xconfigure.height != f->height) {
-                f->width  = event.xconfigure.width;
-                f->height = event.xconfigure.height;
+                f->width      = event.xconfigure.width;
+                f->height     = event.xconfigure.height;
                 FrameEvent ev = {.type = FRAME_EVENT_RESIZE};
                 frame_event_enqueue(f, ev);
             }
@@ -1250,8 +1255,8 @@ static LRESULT CALLBACK WindowProc(HWND hwnd,
             int new_w = LOWORD(lParam);
             int new_h = HIWORD(lParam);
             if (new_w != f->width || new_h != f->height) {
-                f->width = new_w;
-                f->height = new_h;
+                f->width      = new_w;
+                f->height     = new_h;
                 FrameEvent ev = {.type = FRAME_EVENT_RESIZE};
                 frame_event_enqueue(f, ev);
             }
@@ -1484,20 +1489,64 @@ void frame_done(Frame* f) {
     f->done = true;
 }
 
-u32* frame_add_pixels_layer(Frame* f, int width, int height) {
+GfxLayer* frame_add_pixels_layer(Frame* f, int width, int height) {
     GfxLayer* layer = gfx_layer_create(width, height, NULL);
     if (!layer) {
         eprn("Failed to create graphics layer");
         return NULL;
     }
     array_push(f->layers, layer);
-    return (u32*)gfx_layer_get_pixels(layer);
+    return layer;
 }
 
 f64 frame_fps(Frame* f) { return f->fps; }
 
-void frame_free_pixels_layer(u32* pixels) {
-    KORE_UNUSED(pixels); // Layer teardown happens in frame_cleanup
+void frame_free_pixels_layer(GfxLayer* layer) {
+    KORE_UNUSED(layer); // Layer teardown happens in frame_cleanup
+}
+
+bool frame_map_coords_to_layer(Frame* f,
+                               const GfxLayer* layer,
+                               int window_x,
+                               int window_y,
+                               int* out_layer_x,
+                               int* out_layer_y) {
+    if (!f || !layer || !out_layer_x || !out_layer_y) {
+        return false;
+    }
+
+    const int lw = gfx_layer_get_width(layer);
+    const int lh = gfx_layer_get_height(layer);
+    const int ww = f->width;
+    const int wh = f->height;
+    if (lw <= 0 || lh <= 0 || ww <= 0 || wh <= 0) {
+        return false;
+    }
+
+    double scale_w = (double)ww / (double)lw;
+    double scale_h = (double)wh / (double)lh;
+    double scale   = (scale_w < scale_h) ? scale_w : scale_h;
+    if (scale >= 1.0) {
+        scale = (double)(int)scale; // integer upscaling to match renderer
+    }
+    if (scale <= 0.0) {
+        return false;
+    }
+
+    const int sw      = (int)(lw * scale);
+    const int sh      = (int)(lh * scale);
+    const int off_x   = (ww - sw) / 2;
+    const int off_y   = (wh - sh) / 2;
+
+    const int local_x = window_x - off_x;
+    const int local_y = window_y - off_y;
+    if (local_x < 0 || local_y < 0 || local_x >= sw || local_y >= sh) {
+        return false;
+    }
+
+    *out_layer_x = (int)(local_x / scale);
+    *out_layer_y = (int)(local_y / scale);
+    return true;
 }
 
 //------------------------------------------------------------------------------
