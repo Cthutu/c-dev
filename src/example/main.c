@@ -5,97 +5,32 @@
 #include <math.h>
 #include <stddef.h>
 
-// Simple plasma-like animation with orbiting bands and a subtle pixel grid.
-static void render_demo(u32* pixels, int w, int h, f64 time_s) {
-    KORE_UNUSED(time_s);
-
-    PixelBufferDrawContext draw_ctx = draw_create_pixel_context(w, h, pixels);
-    DrawContext* ctx                = &draw_ctx.ctx;
-
-    draw_horz_line(ctx, 0, 0, w, COLOUR_RGB(255, 0, 0));
-    draw_horz_line(ctx, 0, h - 1, w, COLOUR_RGB(255, 0, 0));
-    draw_vert_line(ctx, 0, 0, h, COLOUR_RGB(255, 0, 0));
-    draw_vert_line(ctx, w - 1, 0, h, COLOUR_RGB(255, 0, 0));
-
-    const int cx = w / 2;
-    const int cy = h / 2;
-    static const struct {
-        double dx;
-        double dy;
-        u32 colour;
-    } octants[] = {
-        {0.9238795325,
-         -0.3826834324,
-         COLOUR_RGB(255, 128, 0)}, // East-NorthEast (orange)
-        {0.3826834324,
-         -0.9238795325,
-         COLOUR_RGB(255, 255, 0)}, // North-NorthEast (yellow)
-        {-0.3826834324,
-         -0.9238795325,
-         COLOUR_RGB(0, 255, 0)}, // North-NorthWest (green)
-        {-0.9238795325,
-         -0.3826834324,
-         COLOUR_RGB(0, 255, 255)}, // West-NorthWest (cyan)
-        {-0.9238795325,
-         0.3826834324,
-         COLOUR_RGB(0, 128, 255)}, // West-SouthWest (blue)
-        {-0.3826834324,
-         0.9238795325,
-         COLOUR_RGB(0, 0, 255)}, // South-SouthWest (blue)
-        {0.3826834324,
-         0.9238795325,
-         COLOUR_RGB(128, 0, 255)}, // South-SouthEast (purple)
-        {0.9238795325,
-         0.3826834324,
-         COLOUR_RGB(255, 0, 255)}, // East-SouthEast (magenta)
-    };
-
-    for (size_t i = 0; i < sizeof(octants) / sizeof(octants[0]); ++i) {
-        const double dx = octants[i].dx;
-        const double dy = octants[i].dy;
-
-        const double tx =
-            dx > 0.0 ? (w - 1 - cx) / dx : (dx < 0.0 ? (0.0 - cx) / dx : 1e9);
-        const double ty =
-            dy > 0.0 ? (h - 1 - cy) / dy : (dy < 0.0 ? (0.0 - cy) / dy : 1e9);
-        const double t = (tx < ty) ? tx : ty;
-
-        int x1         = (int)lround(cx + dx * t);
-        int y1         = (int)lround(cy + dy * t);
-
-        if (x1 < 0) {
-            x1 = 0;
-        } else if (x1 >= w) {
-            x1 = w - 1;
-        }
-        if (y1 < 0) {
-            y1 = 0;
-        } else if (y1 >= h) {
-            y1 = h - 1;
-        }
-
-        draw_line(ctx, cx, cy, x1, y1, octants[i].colour);
-    }
-}
-
 int kmain(int argc, char** argv) {
     KORE_UNUSED(argc);
     KORE_UNUSED(argv);
 
-    Frame main_frame  = frame_open(800, 600, true, "Kore Frame Example");
+    int window_width  = 800;
+    int window_height = 600;
+    int layer_width   = 400;
+    int layer_height  = 300;
 
-    u32* layer_pixels = frame_add_pixels_layer(&main_frame, 400, 300);
-    if (!layer_pixels) {
+    Frame main_frame =
+        frame_open(window_width, window_height, true, "Kore Frame Example");
+
+    GfxLayer* layer =
+        frame_add_pixels_layer(&main_frame, layer_width, layer_height);
+    if (!layer) {
         eprn("Failed to add pixel layer to frame");
         return 1;
     }
 
-    const int layer_w   = 400;
-    const int layer_h   = 300;
     TimePoint start     = time_now();
     TimePoint fps_timer = start;
     f64 current_fps     = 0.0;
     bool fullscreen     = false;
+    bool mouse_down     = false;
+    int last_x          = -1;
+    int last_y          = -1;
 
     // Main loop
     while (frame_loop(&main_frame)) {
@@ -103,10 +38,7 @@ int kmain(int argc, char** argv) {
 
         switch (ev.type) {
         case FRAME_EVENT_NONE:
-            TimePoint now   = time_now();
-            TimeDuration dt = time_elapsed(start, now);
-            f64 t           = time_secs(dt);
-            render_demo(layer_pixels, layer_w, layer_h, t);
+            TimePoint now = time_now();
 
             // Report FPS every 5 seconds
             if (time_secs(time_elapsed(fps_timer, now)) >= 5.0) {
@@ -134,12 +66,51 @@ int kmain(int argc, char** argv) {
             }
             break;
 
+        case FRAME_EVENT_MOUSE_BUTTON_DOWN:
+            if (ev.mouse.button == MOUSE_BUTTON_LEFT) {
+                mouse_down = true;
+            }
+            break;
+
+        case FRAME_EVENT_MOUSE_BUTTON_UP:
+            if (ev.mouse.button == MOUSE_BUTTON_LEFT) {
+                mouse_down = false;
+                last_x     = -1;
+                last_y     = -1;
+            }
+            break;
+
+        case FRAME_EVENT_MOUSE_MOVE:
+            if (mouse_down) {
+                int layer_x, layer_y;
+                if (frame_map_coords_to_layer(&main_frame,
+                                              layer,
+                                              ev.mouse.x,
+                                              ev.mouse.y,
+                                              &layer_x,
+                                              &layer_y)) {
+                    if (last_x == -1 && last_y == -1) {
+                        last_x = layer_x;
+                        last_y = layer_y;
+                    }
+                    draw_line(layer,
+                              last_x,
+                              last_y,
+                              layer_x,
+                              layer_y,
+                              COLOUR_RGB(255, 0, 0));
+                    draw_plot(layer, layer_x, layer_y, COLOUR_RGB(255, 0, 0));
+                    last_x = layer_x;
+                    last_y = layer_y;
+                }
+            }
+
         default:
             break;
         }
     }
 
-    frame_free_pixels_layer(layer_pixels);
+    frame_free_pixels_layer(layer);
 
     return 0;
 }
