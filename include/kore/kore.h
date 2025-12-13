@@ -169,6 +169,9 @@
 #define KORE_ALIGN_PTR_UP(type, ptr, alignment)                                \
     (type*)KORE_ALIGN_UP((usize)(ptr), (alignment))
 
+#define KORE_PI 3.14159265358979323846
+#define KORE_TAU (KORE_PI * 2.0)
+
 #define KORE_ASSERT(condition, ...)                                            \
     do {                                                                       \
         if (!(condition)) {                                                    \
