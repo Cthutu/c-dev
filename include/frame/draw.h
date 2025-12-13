@@ -8,6 +8,7 @@
 
 //------------------------------------------------------------------------------
 
+#include <frame/gfx.h>
 #include <kore/kore.h>
 
 //------------------------------------------------------------------------------
@@ -16,55 +17,17 @@
     (((u32)(a) << 24) | ((u32)(b) << 16) | ((u32)(g) << 8) | (u32)(r))
 #define COLOUR_RGB(r, g, b) COLOUR_RGBA(r, g, b, 255u)
 
-typedef enum {
-    DRAW_CONTEXT_TYPE_PIXEL_BUFFER,
-} DrawContextType;
-
-typedef struct DrawContext_t {
-    DrawContextType type;
-    void (*draw_horz_line_func)(
-        struct DrawContext_t* ctx, int x, int y, int length, u32 colour);
-    void (*draw_vert_line_func)(
-        struct DrawContext_t* ctx, int x, int y, int length, u32 colour);
-    void (*draw_line_func)(
-        struct DrawContext_t* ctx, int x0, int y0, int x1, int y1, u32 colour);
-    void (*draw_rect_func)(struct DrawContext_t* ctx,
-                           int x,
-                           int y,
-                           int width,
-                           int height,
-                           u32 colour);
-    void (*draw_filled_rect_func)(struct DrawContext_t* ctx,
-                                  int x,
-                                  int y,
-                                  int width,
-                                  int height,
-                                  u32 colour);
-    void (*draw_circle_func)(
-        struct DrawContext_t* ctx, int x, int y, int radius, u32 colour);
-    void (*draw_filled_circle_func)(
-        struct DrawContext_t* ctx, int x, int y, int radius, u32 colour);
-} DrawContext;
-
-typedef struct {
-    DrawContext ctx;
-    int width;
-    int height;
-    u32* pixel_buffer;
-} PixelBufferDrawContext;
-
-PixelBufferDrawContext
-draw_create_pixel_context(int width, int height, u32* pixel_buffer);
-
-void draw_horz_line(DrawContext* ctx, int x, int y, int length, u32 colour);
-void draw_vert_line(DrawContext* ctx, int x, int y, int length, u32 colour);
-void draw_line(DrawContext* ctx, int x0, int y0, int x1, int y1, u32 colour);
+void draw_plot(GfxLayer* layer, int x, int y, u32 colour);
+void draw_horz_line(GfxLayer* layer, int x, int y, int length, u32 colour);
+void draw_vert_line(GfxLayer* layer, int x, int y, int length, u32 colour);
+void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour);
 void draw_rect(
-    DrawContext* ctx, int x, int y, int width, int height, u32 colour);
+    GfxLayer* layer, int x, int y, int width, int height, u32 colour);
 void draw_filled_rect(
-    DrawContext* ctx, int x, int y, int width, int height, u32 colour);
-void draw_circle(DrawContext* ctx, int x, int y, int radius, u32 colour);
-void draw_filled_circle(DrawContext* ctx, int x, int y, int radius, u32 colour);
+    GfxLayer* layer, int x, int y, int width, int height, u32 colour);
+void draw_circle(GfxLayer* layer, int x, int y, int radius, u32 colour);
+void draw_filled_circle(
+    GfxLayer* layer, int x, int y, int radius, u32 colour);
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -189,9 +152,9 @@ void pixel_buffer_draw_rect(
     KORE_UNUSED(colour);
 }
 
-void pixel_buffer_draw_filled_rect(
-    DrawContext* ctx_void, int x, int y, int width, int height, u32 colour) {
-    KORE_UNUSED(ctx_void);
+void draw_filled_rect(
+    GfxLayer* layer, int x, int y, int width, int height, u32 colour) {
+    KORE_UNUSED(layer);
     KORE_UNUSED(x);
     KORE_UNUSED(y);
     KORE_UNUSED(width);
@@ -199,74 +162,21 @@ void pixel_buffer_draw_filled_rect(
     KORE_UNUSED(colour);
 }
 
-void pixel_buffer_draw_circle(
-    DrawContext* ctx_void, int x, int y, int radius, u32 colour) {
-    KORE_UNUSED(ctx_void);
+void draw_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
+    KORE_UNUSED(layer);
     KORE_UNUSED(x);
     KORE_UNUSED(y);
     KORE_UNUSED(radius);
     KORE_UNUSED(colour);
-}
-
-void pixel_buffer_draw_filled_circle(
-    DrawContext* ctx_void, int x, int y, int radius, u32 colour) {
-    KORE_UNUSED(ctx_void);
-    KORE_UNUSED(x);
-    KORE_UNUSED(y);
-    KORE_UNUSED(radius);
-    KORE_UNUSED(colour);
-}
-
-//------------------------------------------------------------------------------
-// Draw API
-//------------------------------------------------------------------------------
-
-PixelBufferDrawContext
-draw_create_pixel_context(int width, int height, u32* pixel_buffer) {
-    PixelBufferDrawContext ctx;
-    ctx.ctx.type                    = DRAW_CONTEXT_TYPE_PIXEL_BUFFER;
-    ctx.ctx.draw_horz_line_func     = pixel_buffer_draw_horz_line;
-    ctx.ctx.draw_vert_line_func     = pixel_buffer_draw_vert_line;
-    ctx.ctx.draw_line_func          = pixel_buffer_draw_line;
-    ctx.ctx.draw_rect_func          = pixel_buffer_draw_rect;
-    ctx.ctx.draw_filled_rect_func   = pixel_buffer_draw_filled_rect;
-    ctx.ctx.draw_circle_func        = pixel_buffer_draw_circle;
-    ctx.ctx.draw_filled_circle_func = pixel_buffer_draw_filled_circle;
-    ctx.width                       = width;
-    ctx.height                      = height;
-    ctx.pixel_buffer                = pixel_buffer;
-    return ctx;
-}
-
-void draw_horz_line(DrawContext* ctx, int x, int y, int length, u32 colour) {
-    ctx->draw_horz_line_func(ctx, x, y, length, colour);
-}
-
-void draw_vert_line(DrawContext* ctx, int x, int y, int length, u32 colour) {
-    ctx->draw_vert_line_func(ctx, x, y, length, colour);
-}
-
-void draw_line(DrawContext* ctx, int x0, int y0, int x1, int y1, u32 colour) {
-    ctx->draw_line_func(ctx, x0, y0, x1, y1, colour);
-}
-
-void draw_rect(
-    DrawContext* ctx, int x, int y, int width, int height, u32 colour) {
-    ctx->draw_rect_func(ctx, x, y, width, height, colour);
-}
-
-void draw_filled_rect(
-    DrawContext* ctx, int x, int y, int width, int height, u32 colour) {
-    ctx->draw_filled_rect_func(ctx, x, y, width, height, colour);
-}
-
-void draw_circle(DrawContext* ctx, int x, int y, int radius, u32 colour) {
-    ctx->draw_circle_func(ctx, x, y, radius, colour);
 }
 
 void draw_filled_circle(
-    DrawContext* ctx, int x, int y, int radius, u32 colour) {
-    ctx->draw_filled_circle_func(ctx, x, y, radius, colour);
+    GfxLayer* layer, int x, int y, int radius, u32 colour) {
+    KORE_UNUSED(layer);
+    KORE_UNUSED(x);
+    KORE_UNUSED(y);
+    KORE_UNUSED(radius);
+    KORE_UNUSED(colour);
 }
 
 //------------------------------------------------------------------------------
