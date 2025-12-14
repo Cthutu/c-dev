@@ -124,7 +124,6 @@ int kmain(int argc, char** argv) {
                               layer_x,
                               layer_y,
                               COLOUR_RGB(255, 0, 0));
-                    draw_plot(layer, layer_x, layer_y, COLOUR_RGB(255, 0, 0));
                     last_x = layer_x;
                     last_y = layer_y;
                 }
