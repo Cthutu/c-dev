@@ -121,6 +121,22 @@ void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour) {
     if (!layer) {
         return;
     }
+
+    // If the caller provides axis-aligned lines, defer to the helpers that are
+    // already inclusive.
+    if (y0 == y1) {
+        const int len =
+            (x1 >= x0) ? (x1 - x0 + 1) : -(x0 - x1 + 1); // inclusive end
+        draw_horz_line(layer, x0, y0, len, colour);
+        return;
+    }
+    if (x0 == x1) {
+        const int len =
+            (y1 >= y0) ? (y1 - y0 + 1) : -(y0 - y1 + 1); // inclusive end
+        draw_vert_line(layer, x0, y0, len, colour);
+        return;
+    }
+
     const int width  = gfx_layer_get_width(layer);
     const int height = gfx_layer_get_height(layer);
     if (width <= 0 || height <= 0) {
@@ -180,7 +196,7 @@ void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour) {
     const int w = width;
 
     for (;;) {
-        pixels[y0 * w + x0] = colour;
+        pixels[y0 * w + x0] = colour; // inclusive endpoint
 
         if (x0 == x1 && y0 == y1) {
             break;
