@@ -46,6 +46,31 @@ int kmain(int argc, char** argv) {
                 eprn("Current FPS: %.2f", current_fps);
                 fps_timer = now;
             }
+
+            // Render border
+            int width  = gfx_layer_get_width(layer);
+            int height = gfx_layer_get_height(layer);
+            draw_rect(layer, 0, 0, width, height, COLOUR_RGB(255, 255, 0));
+
+            // Render test rectangle
+            draw_filled_rect(layer,
+                             50,
+                             50,
+                             width - 100,
+                             height - 100,
+                             COLOUR_RGB(0, 0, 255));
+            draw_rect(layer,
+                      50,
+                      50,
+                      width - 100,
+                      height - 100,
+                      COLOUR_RGB(255, 255, 255));
+
+            // Draw text circle
+            draw_circle(
+                layer, width / 2, height / 2, 75, COLOUR_RGB(0, 255, 0));
+            draw_filled_circle(
+                layer, width / 2, height / 2, 50, COLOUR_RGB(255, 0, 0));
             break;
 
         case FRAME_EVENT_KEY_DOWN:
