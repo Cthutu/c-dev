@@ -216,11 +216,30 @@ void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour) {
 
 void draw_rect(
     GfxLayer* layer, int x, int y, int width, int height, u32 colour) {
-    draw_line(layer, x, y, x + width, y, colour);
-    draw_line(layer, x + width - 1, y, x + width - 1, y + height, colour);
-    draw_line(
-        layer, x + width - 1, y + height - 1, x - 1, y + height - 1, colour);
-    draw_line(layer, x, y + height, x, y, colour);
+    if (!layer || width == 0 || height == 0) {
+        return;
+    }
+
+    if (width < 0) {
+        x += width;
+        width = -width;
+    }
+    if (height < 0) {
+        y += height;
+        height = -height;
+    }
+
+    draw_horz_line(layer, x, y, width, colour);
+    if (height > 1) {
+        draw_horz_line(layer, x, y + height - 1, width, colour);
+    }
+
+    if (height > 2) {
+        draw_vert_line(layer, x, y + 1, height - 2, colour);
+        if (width > 1) {
+            draw_vert_line(layer, x + width - 1, y + 1, height - 2, colour);
+        }
+    }
 }
 
 void draw_filled_rect(
