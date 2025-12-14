@@ -182,6 +182,10 @@
         }                                                                      \
     } while (0)
 
+#define KORE_MIN(a, b) ((a) < (b) ? (a) : (b))
+#define KORE_MAX(a, b) ((a) > (b) ? (a) : (b))
+#define KORE_CLAMP(x, min, max) KORE_MAX((min), KORE_MIN((x), (max)))
+
 //------------------------------------------------------------------------------[Types]
 
 typedef uint8_t u8;   // Unsigned 8-bit integer
