@@ -200,39 +200,228 @@ void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour) {
 
 void draw_rect(
     GfxLayer* layer, int x, int y, int width, int height, u32 colour) {
-    KORE_UNUSED(layer);
-    KORE_UNUSED(x);
-    KORE_UNUSED(y);
-    KORE_UNUSED(width);
-    KORE_UNUSED(height);
-    KORE_UNUSED(colour);
+    draw_line(layer, x, y, x + width, y, colour);
+    draw_line(layer, x + width - 1, y, x + width - 1, y + height, colour);
+    draw_line(
+        layer, x + width - 1, y + height - 1, x - 1, y + height - 1, colour);
+    draw_line(layer, x, y + height, x, y, colour);
 }
 
 void draw_filled_rect(
     GfxLayer* layer, int x, int y, int width, int height, u32 colour) {
-    KORE_UNUSED(layer);
-    KORE_UNUSED(x);
-    KORE_UNUSED(y);
-    KORE_UNUSED(width);
-    KORE_UNUSED(height);
-    KORE_UNUSED(colour);
+
+    const int w = gfx_layer_get_width(layer);
+    const int h = gfx_layer_get_height(layer);
+
+    //
+    // Clip area to bounds
+    //
+    if (x < 0) {
+        width += x;
+        x = 0;
+    }
+    if (y < 0) {
+        height += y;
+        y = 0;
+    }
+    width  = KORE_CLAMP(width, 0, w - x);
+    height = KORE_CLAMP(height, 0, h - y);
+    if (width <= 0 || height <= 0) {
+        return;
+    }
+
+    //
+    // Draw filled rectangle
+    //
+
+    u32* pixels = gfx_layer_get_pixels(layer);
+    for (int row = 0; row < height; ++row) {
+        u32* row_start = pixels + (y + row) * w + x;
+        for (int col = 0; col < width; ++col) {
+            row_start[col] = colour;
+        }
+    }
 }
 
 void draw_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
-    KORE_UNUSED(layer);
-    KORE_UNUSED(x);
-    KORE_UNUSED(y);
-    KORE_UNUSED(radius);
-    KORE_UNUSED(colour);
+    if (!layer || radius < 0) {
+        return;
+    }
+    if (radius == 0) {
+        draw_plot(layer, x, y, colour);
+        return;
+    }
+
+    const int w = gfx_layer_get_width(layer);
+    const int h = gfx_layer_get_height(layer);
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+
+    const int max_x = w - 1;
+    const int max_y = h - 1;
+    if (x + radius < 0 || x - radius > max_x || y + radius < 0 ||
+        y - radius > max_y) {
+        return;
+    }
+
+    u32* pixels = gfx_layer_get_pixels(layer);
+
+    int dx      = radius;
+    int dy      = 0;
+    int err     = 1 - dx;
+
+    while (dx >= dy) {
+        const int px1 = x + dx;
+        const int px2 = x - dx;
+        const int px3 = x + dy;
+        const int px4 = x - dy;
+
+        const int py1 = y + dy;
+        const int py2 = y - dy;
+        const int py3 = y + dx;
+        const int py4 = y - dx;
+
+        if (px1 >= 0 && px1 <= max_x) {
+            if (py1 >= 0 && py1 <= max_y) {
+                pixels[py1 * w + px1] = colour;
+            }
+            if (py2 >= 0 && py2 <= max_y) {
+                pixels[py2 * w + px1] = colour;
+            }
+        }
+        if (px2 >= 0 && px2 <= max_x) {
+            if (py1 >= 0 && py1 <= max_y) {
+                pixels[py1 * w + px2] = colour;
+            }
+            if (py2 >= 0 && py2 <= max_y) {
+                pixels[py2 * w + px2] = colour;
+            }
+        }
+        if (px3 >= 0 && px3 <= max_x) {
+            if (py3 >= 0 && py3 <= max_y) {
+                pixels[py3 * w + px3] = colour;
+            }
+            if (py4 >= 0 && py4 <= max_y) {
+                pixels[py4 * w + px3] = colour;
+            }
+        }
+        if (px4 >= 0 && px4 <= max_x) {
+            if (py3 >= 0 && py3 <= max_y) {
+                pixels[py3 * w + px4] = colour;
+            }
+            if (py4 >= 0 && py4 <= max_y) {
+                pixels[py4 * w + px4] = colour;
+            }
+        }
+
+        ++dy;
+        if (err <= 0) {
+            err += (dy << 1) + 1;
+        } else {
+            --dx;
+            err += ((dy - dx) << 1) + 1;
+        }
+    }
 }
 
-void draw_filled_circle(
-    GfxLayer* layer, int x, int y, int radius, u32 colour) {
-    KORE_UNUSED(layer);
-    KORE_UNUSED(x);
-    KORE_UNUSED(y);
-    KORE_UNUSED(radius);
-    KORE_UNUSED(colour);
+void draw_filled_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
+    if (!layer || radius < 0) {
+        return;
+    }
+    if (radius == 0) {
+        draw_plot(layer, x, y, colour);
+        return;
+    }
+
+    const int w = gfx_layer_get_width(layer);
+    const int h = gfx_layer_get_height(layer);
+    if (w <= 0 || h <= 0) {
+        return;
+    }
+
+    const int max_x = w - 1;
+    const int max_y = h - 1;
+    if (x + radius < 0 || x - radius > max_x || y + radius < 0 ||
+        y - radius > max_y) {
+        return;
+    }
+
+    u32* pixels = gfx_layer_get_pixels(layer);
+
+    int dx      = radius;
+    int dy      = 0;
+    int err     = 1 - dx;
+
+    while (dx >= dy) {
+        int left  = x - dx;
+        int right = x + dx;
+
+        int row = y + dy;
+        if (row >= 0 && row <= max_y) {
+            int lx = (left < 0) ? 0 : left;
+            int rx = (right > max_x) ? max_x : right;
+            if (lx <= rx) {
+                u32* p   = pixels + row * w + lx;
+                int cnt  = rx - lx + 1;
+                while (cnt--) {
+                    *p++ = colour;
+                }
+            }
+        }
+        if (dy != 0) {
+            row = y - dy;
+            if (row >= 0 && row <= max_y) {
+                int lx = (left < 0) ? 0 : left;
+                int rx = (right > max_x) ? max_x : right;
+                if (lx <= rx) {
+                    u32* p   = pixels + row * w + lx;
+                    int cnt  = rx - lx + 1;
+                    while (cnt--) {
+                        *p++ = colour;
+                    }
+                }
+            }
+        }
+
+        if (dx != dy) {
+            left  = x - dy;
+            right = x + dy;
+
+            row = y + dx;
+            if (row >= 0 && row <= max_y) {
+                int lx = (left < 0) ? 0 : left;
+                int rx = (right > max_x) ? max_x : right;
+                if (lx <= rx) {
+                    u32* p   = pixels + row * w + lx;
+                    int cnt  = rx - lx + 1;
+                    while (cnt--) {
+                        *p++ = colour;
+                    }
+                }
+            }
+            row = y - dx;
+            if (row >= 0 && row <= max_y) {
+                int lx = (left < 0) ? 0 : left;
+                int rx = (right > max_x) ? max_x : right;
+                if (lx <= rx) {
+                    u32* p   = pixels + row * w + lx;
+                    int cnt  = rx - lx + 1;
+                    while (cnt--) {
+                        *p++ = colour;
+                    }
+                }
+            }
+        }
+
+        ++dy;
+        if (err <= 0) {
+            err += (dy << 1) + 1;
+        } else {
+            --dx;
+            err += ((dy - dx) << 1) + 1;
+        }
+    }
 }
 
 //------------------------------------------------------------------------------
