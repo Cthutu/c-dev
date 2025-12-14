@@ -26,8 +26,7 @@ void draw_rect(
 void draw_filled_rect(
     GfxLayer* layer, int x, int y, int width, int height, u32 colour);
 void draw_circle(GfxLayer* layer, int x, int y, int radius, u32 colour);
-void draw_filled_circle(
-    GfxLayer* layer, int x, int y, int radius, u32 colour);
+void draw_filled_circle(GfxLayer* layer, int x, int y, int radius, u32 colour);
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -67,12 +66,11 @@ void draw_plot(GfxLayer* layer, int x, int y, u32 colour) {
     if (x < 0 || x >= width || y < 0 || y >= height) {
         return;
     }
-    u32* pixels       = gfx_layer_get_pixels(layer);
+    u32* pixels           = gfx_layer_get_pixels(layer);
     pixels[y * width + x] = colour;
 }
 
-void draw_horz_line(
-    GfxLayer* layer, int x, int y, int length, u32 colour) {
+void draw_horz_line(GfxLayer* layer, int x, int y, int length, u32 colour) {
     if (!layer) {
         return;
     }
@@ -95,8 +93,7 @@ void draw_horz_line(
     }
 }
 
-void draw_vert_line(
-    GfxLayer* layer, int x, int y, int length, u32 colour) {
+void draw_vert_line(GfxLayer* layer, int x, int y, int length, u32 colour) {
     if (!layer) {
         return;
     }
