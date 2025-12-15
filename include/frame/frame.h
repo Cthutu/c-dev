@@ -21,6 +21,12 @@
 #    include <windowsx.h>
 #endif // KORE_OS_LINUX
 
+#if KORE_OS_WINDOWS
+#    ifdef KEY_EXECUTE
+#        undef KEY_EXECUTE
+#    endif
+#endif
+
 //------------------------------------------------------------------------------
 
 typedef enum {
