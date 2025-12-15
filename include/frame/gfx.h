@@ -167,6 +167,10 @@ typedef void(APIENTRYP PFNGLBUFFERDATAPROC)(GLenum,
                                             GLsizeiptr,
                                             const void*,
                                             GLenum);
+typedef void(APIENTRYP PFNGLBUFFERSUBDATAPROC)(GLenum,
+                                               GLintptr,
+                                               GLsizeiptr,
+                                               const void*);
 typedef void(APIENTRYP PFNGLDELETEBUFFERSPROC)(GLsizei, const GLuint*);
 typedef void*(APIENTRYP PFNGLMAPBUFFERRANGEPROC)(GLenum,
                                                  GLintptr,
@@ -200,6 +204,7 @@ static PFNGLUSEPROGRAMPROC p_glUseProgram                           = NULL;
 static PFNGLGENBUFFERSPROC p_glGenBuffers                           = NULL;
 static PFNGLBINDBUFFERPROC p_glBindBuffer                           = NULL;
 static PFNGLBUFFERDATAPROC p_glBufferData                           = NULL;
+static PFNGLBUFFERSUBDATAPROC p_glBufferSubData                     = NULL;
 static PFNGLDELETEBUFFERSPROC p_glDeleteBuffers                     = NULL;
 static PFNGLGENVERTEXARRAYSPROC p_glGenVertexArrays                 = NULL;
 static PFNGLBINDVERTEXARRAYPROC p_glBindVertexArray                 = NULL;
@@ -229,6 +234,7 @@ static PFNGLUNMAPBUFFERPROC p_glUnmapBuffer                         = NULL;
 #        define glGenBuffers p_glGenBuffers
 #        define glBindBuffer p_glBindBuffer
 #        define glBufferData p_glBufferData
+#        define glBufferSubData p_glBufferSubData
 #        define glDeleteBuffers p_glDeleteBuffers
 #        define glGenVertexArrays p_glGenVertexArrays
 #        define glBindVertexArray p_glBindVertexArray
@@ -269,6 +275,12 @@ static PFNGLUNMAPBUFFERPROC p_glUnmapBuffer                         = NULL;
 #        endif
 #        ifndef GL_MAP_UNSYNCHRONIZED_BIT
 #            define GL_MAP_UNSYNCHRONIZED_BIT 0x0020
+#        endif
+#        ifndef GL_PIXEL_UNPACK_BUFFER
+#            define GL_PIXEL_UNPACK_BUFFER 0x88EC
+#        endif
+#        ifndef GL_PIXEL_UNPACK_BUFFER_BINDING
+#            define GL_PIXEL_UNPACK_BUFFER_BINDING 0x88EF
 #        endif
 #        ifndef GL_STREAM_DRAW
 #            define GL_STREAM_DRAW 0x88E0
@@ -316,6 +328,7 @@ static bool gfx_load_gl_functions(void) {
     LOAD_GL(glGenBuffers);
     LOAD_GL(glBindBuffer);
     LOAD_GL(glBufferData);
+    LOAD_GL(glBufferSubData);
     LOAD_GL(glDeleteBuffers);
     LOAD_GL(glMapBuffer);
     LOAD_GL(glUnmapBuffer);
