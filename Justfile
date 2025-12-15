@@ -1,11 +1,11 @@
 default:
     @just --list
 
-build project:
-    @./build.sh {{project}}
+build *args:
+    @./build.sh {{args}}
 
-run project *args:
-    @./run.sh {{project}} {{args}}
+run *args:
+    @./run.sh {{args}}
 
 clean:
     @rm -rf _*
@@ -14,7 +14,8 @@ test project *args:
     @./test.sh {{project}} {{args}}
 
 
-full-test project: clean (test project) (run project)
+full-test project: clean (test project)
+    @just run {{project}}
 
 alias b := build
 alias r := run
