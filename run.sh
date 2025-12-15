@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 
+RELEASE_MODE=0
+while getopts ":r" opt; do
+    case "$opt" in
+        r) RELEASE_MODE=1 ;;
+        *) echo "Usage: $0 [-r] <project> [-- <args for executable>]"; exit 1 ;;
+    esac
+done
+shift $((OPTIND - 1))
+
 PROJECT="$1"
 if [ -z "$PROJECT" ]; then
-    echo "Usage: $0 <project> [-- <args for executable>]"
+    echo "Usage: $0 [-r] <project> [-- <args for executable>]"
     exit 1
 fi
 shift
@@ -35,7 +44,12 @@ fi
 
 : "${EXE_NAME:=$DEFAULT_EXE_NAME}"
 
-./build.sh "$PROJECT"
+BUILD_ARGS=()
+if [ "$RELEASE_MODE" -eq 1 ]; then
+    BUILD_ARGS+=("-r")
+fi
+
+./build.sh "${BUILD_ARGS[@]}" "$PROJECT"
 if [ $? -ne 0 ]; then
     echo "Build failed. Exiting."
     exit 1
