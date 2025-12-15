@@ -1312,11 +1312,12 @@ Frame frame_open(int width, int height, bool resizable, const char* title) {
     DWORD style = f.resizable ? (WS_OVERLAPPEDWINDOW | WS_VISIBLE)
                               : (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU |
                                  WS_MINIMIZEBOX | WS_VISIBLE);
+    DWORD ex_style = WS_EX_CLIENTEDGE;
 
-    RECT rc     = {0, 0, f.width, f.height};
-    AdjustWindowRect(&rc, style & ~WS_VISIBLE, FALSE);
+    RECT rc        = {0, 0, f.width, f.height};
+    AdjustWindowRectEx(&rc, style & ~WS_VISIBLE, FALSE, ex_style);
 
-    f.hwnd = CreateWindowEx(WS_EX_CLIENTEDGE,
+    f.hwnd = CreateWindowEx(ex_style,
                             f.title,
                             f.title,
                             style,
@@ -1337,6 +1338,14 @@ Frame frame_open(int width, int height, bool resizable, const char* title) {
     SetWindowLongPtr(f.hwnd, GWLP_USERDATA, (LONG_PTR)&f);
 
     f.hdc                     = GetDC(f.hwnd);
+
+    // Ensure stored width/height reflect actual client area after decoration.
+    {
+        RECT cr;
+        GetClientRect(f.hwnd, &cr);
+        f.width  = cr.right - cr.left;
+        f.height = cr.bottom - cr.top;
+    }
 
     PIXELFORMATDESCRIPTOR pfd = {
         .nSize    = sizeof(PIXELFORMATDESCRIPTOR),
