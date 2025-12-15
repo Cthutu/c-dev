@@ -1160,7 +1160,7 @@ static LRESULT CALLBACK WindowProc(HWND hwnd,
     switch (msg) {
     case WM_PAINT: {
         PAINTSTRUCT ps;
-        HDC hdc = BeginPaint(hwnd, &ps);
+        BeginPaint(hwnd, &ps);
         EndPaint(hwnd, &ps);
     } break;
 
