@@ -726,12 +726,17 @@ void mem_leak(void* ptr) {
         }
     }
 
+#    else
+    KORE_UNUSED(ptr);
+
 #    endif // KORE_DEBUG
 }
 
 void mem_break_on_alloc(u64 index) {
 #    if KORE_DEBUG
     g_memory_break_index = index;
+#    else
+    KORE_UNUSED(index);
 #    endif
 }
 
@@ -1376,7 +1381,9 @@ int main(int argc, char** argv) {
     SetConsoleOutputCP(old_output_cp);
 #    endif // KORE_OS_WINDOWS
 
+#    if KORE_DEBUG
     mem_print_leaks();
+#    endif // KORE_DEBUG
     mutex_done(&g_kore_output_mutex);
     return result;
 }
