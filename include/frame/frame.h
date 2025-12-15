@@ -1254,6 +1254,12 @@ static LRESULT CALLBACK WindowProc(HWND hwnd,
         }
         return 0;
 
+    // Alt+key combinations (e.g., Alt+Enter) generate WM_SYSCHAR after the
+    // keydown; if we let DefWindowProc handle it with no menu present Windows
+    // plays a beep. Swallow it here to keep fullscreen toggle silent.
+    case WM_SYSCHAR:
+        return 0;
+
     case WM_SIZE:
         if (!f) {
             return DefWindowProc(hwnd, msg, wParam, lParam);
@@ -1305,12 +1311,15 @@ Frame frame_open(int width, int height, bool resizable, const char* title) {
              .lpfnWndProc   = WindowProc,
              .hInstance     = instance,
              .lpszClassName = f.title,
+             .hCursor       = LoadCursor(NULL, IDC_ARROW),
+             .hIcon         = LoadIcon(NULL, IDI_APPLICATION),
+             .hIconSm       = LoadIcon(NULL, IDI_APPLICATION),
     };
 
     RegisterClassEx(&wc);
 
-    DWORD style = f.resizable ? (WS_OVERLAPPEDWINDOW | WS_VISIBLE)
-                              : (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU |
+    DWORD style    = f.resizable ? (WS_OVERLAPPEDWINDOW | WS_VISIBLE)
+                                 : (WS_OVERLAPPED | WS_CAPTION | WS_SYSMENU |
                                  WS_MINIMIZEBOX | WS_VISIBLE);
     DWORD ex_style = WS_EX_CLIENTEDGE;
 
@@ -1337,7 +1346,7 @@ Frame frame_open(int width, int height, bool resizable, const char* title) {
 
     SetWindowLongPtr(f.hwnd, GWLP_USERDATA, (LONG_PTR)&f);
 
-    f.hdc                     = GetDC(f.hwnd);
+    f.hdc = GetDC(f.hwnd);
 
     // Ensure stored width/height reflect actual client area after decoration.
     {
