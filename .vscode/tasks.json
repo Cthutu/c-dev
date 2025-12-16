@@ -7,7 +7,7 @@
             "command": "just",
             "args": [
                 "build",
-                "example"
+                "config"
             ],
             "group": {
                 "kind": "build",
