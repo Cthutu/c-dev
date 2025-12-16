@@ -186,22 +186,28 @@
 #define KORE_MAX(a, b) ((a) > (b) ? (a) : (b))
 #define KORE_CLAMP(x, min, max) KORE_MAX((min), KORE_MIN((x), (max)))
 
+#define KORE_DEF_SLICE(type)                                                   \
+    typedef struct {                                                           \
+        type* data;                                                            \
+        usize count;                                                           \
+    }
+
 //------------------------------------------------------------------------------[Types]
 
-typedef uint8_t u8;   // Unsigned 8-bit integer
+typedef uint8_t  u8;  // Unsigned 8-bit integer
 typedef uint16_t u16; // Unsigned 16-bit integer
 typedef uint32_t u32; // Unsigned 32-bit integer
 typedef uint64_t u64; // Unsigned 64-bit integer
 
-typedef int8_t i8;   // Signed 8-bit integer
+typedef int8_t  i8;  // Signed 8-bit integer
 typedef int16_t i16; // Signed 16-bit integer
 typedef int32_t i32; // Signed 32-bit integer
 typedef int64_t i64; // Signed 64-bit integer
 
-typedef size_t usize;    // Unsigned size type (platform-dependent)
+typedef size_t    usize; // Unsigned size type (platform-dependent)
 typedef ptrdiff_t isize; // Signed size type (platform-dependent)
 
-typedef float f32;  // 32-bit floating point
+typedef float  f32; // 32-bit floating point
 typedef double f64; // 64-bit floating point
 
 typedef const char* cstr; // Constant string type
