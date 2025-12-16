@@ -9,6 +9,7 @@ int kmain(int argc, char** argv)
 
     Interner interner;
     intern_init(&interner);
+    intern_leak(&interner);
 
     string test_str   = intern_cstr(&interner, "Hello, World!");
     string test_str_2 = intern_cstr(&interner, "Hello, World!");
