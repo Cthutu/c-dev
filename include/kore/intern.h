@@ -142,6 +142,10 @@ internal inline u64 int_next_power_of_two(u64 v)
 
 void _intern_init(Interner* interner, InternInitParams params)
 {
+    // Ensure all fields start from a known state, especially the slots pointer
+    // that dynamic array helpers expect to be NULL.
+    *interner = (Interner){0};
+
     arena_init(&interner->intern_arena);
     interner->max_load_factor = params.max_load_factor ? params.max_load_factor
                                                        : INTERN_MAX_LOAD_FACTOR;
