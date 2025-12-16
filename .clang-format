@@ -9,6 +9,19 @@ AlignConsecutiveAssignments:
   AlignCompound: false
   AlignFunctionPointers: false
   PadOperators: true
+AlignConsecutiveDeclarations:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: true
+  AlignCompound: false
+  AlignFunctionPointers: false
+  PadOperators: true
+AlignConsecutiveShortCaseStatements:
+  Enabled: true
+  AcrossEmptyLines: true
+  AcrossComments: true
+  AlignCaseColons: false
+AllowShortCaseExpressionOnASingleLine: true
 BinPackArguments: false
 BinPackParameters: OnePerLine
 TabWidth: 4
@@ -17,3 +30,14 @@ InsertBraces: true
 LineEnding: LF
 PointerAlignment: Left
 IndentPPDirectives: AfterHash
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterEnum: false
+  AfterStruct: false
+  AfterUnion: false
+  AfterExternBlock: false
+  AfterCaseLabel: true
+  AfterNamespace: true
+  AfterFunction: true
+IndentCaseBlocks: true
+
