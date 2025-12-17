@@ -58,6 +58,8 @@ string intern_cstr(Interner* interner, cstr str);
 string intern_find(Interner* interner, string str);
 string intern_add(Interner* interner, string str);
 
+InternedString* intern_get_info(string str);
+
 #define INTERN_NOTFOUND (-1u)
 
 //------------------------------------------------------------------------------
@@ -359,6 +361,17 @@ string intern_add(Interner* interner, string str)
 string intern_cstr(Interner* interner, cstr str)
 {
     return intern_add(interner, string_from_cstr(str));
+}
+
+InternedString* intern_get_info(string str)
+{
+    if (str.data == NULL) {
+        return NULL;
+    }
+
+    InternedString* interned_str =
+        (InternedString*)(str.data - offsetof(InternedString, str));
+    return interned_str;
 }
 
 //------------------------------------------------------------------------------
