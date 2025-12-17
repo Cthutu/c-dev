@@ -213,9 +213,9 @@ internal void intern_maybe_grow(Interner* interner)
         return;
     }
 
-    u64 old_cap  = interner->capacity;
-    u64 new_cap  = old_cap ? old_cap * 2 : 8;
-    u64 new_mask = new_cap - 1;
+    u64 old_cap                 = interner->capacity;
+    u64 new_cap                 = old_cap ? old_cap * 2 : 8;
+    u64 new_mask                = new_cap - 1;
 
     Array(InternSlot) new_slots = NULL;
     array_reserve(new_slots, new_cap);
@@ -283,8 +283,7 @@ string intern_add(Interner* interner, string str)
 
             // Allocate InternedString for what we're inserting if not done yet
             if (!insert_str) {
-                usize num_bytes_to_alloc =
-                    sizeof(InternedString) + insert_len;
+                usize num_bytes_to_alloc = sizeof(InternedString) + insert_len;
                 insert_str =
                     (InternedString*)arena_alloc_align(&interner->intern_arena,
                                                        num_bytes_to_alloc,
@@ -308,10 +307,10 @@ string intern_add(Interner* interner, string str)
             memcmp(slot->str->str, insert_data, insert_len) == 0) {
             // Found matching string - return it
             if (!original_inserted) {
-                return (string){.data = slot->str->str,
+                return (string){.data  = slot->str->str,
                                 .count = slot->str->len};
             }
-            return (string){.data = original_str->str,
+            return (string){.data  = original_str->str,
                             .count = original_str->len};
         }
 
@@ -320,8 +319,7 @@ string intern_add(Interner* interner, string str)
 
             // Allocate InternedString for what we're inserting if not done yet
             if (!insert_str) {
-                usize num_bytes_to_alloc =
-                    sizeof(InternedString) + insert_len;
+                usize num_bytes_to_alloc = sizeof(InternedString) + insert_len;
                 insert_str =
                     (InternedString*)arena_alloc_align(&interner->intern_arena,
                                                        num_bytes_to_alloc,
@@ -346,11 +344,11 @@ string intern_add(Interner* interner, string str)
             }
 
             // Now we need to insert the displaced entry
-            insert_hash              = tmp_hash;
-            insert_len               = tmp_str->len;
-            insert_data              = tmp_str->str;
-            insert_str               = tmp_str;
-            psl                      = tmp_psl;
+            insert_hash = tmp_hash;
+            insert_len  = tmp_str->len;
+            insert_data = tmp_str->str;
+            insert_str  = tmp_str;
+            psl         = tmp_psl;
         }
 
         i = (i + 1) & interner->capacity_mask;

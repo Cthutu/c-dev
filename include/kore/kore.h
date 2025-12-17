@@ -250,7 +250,7 @@ extern KMemoryHeader* g_memory_head;
 extern u64            g_memory_index;
 extern u64            g_memory_break_index;
 #    endif // KORE_TEST
-#endif // KORE_DEBUG
+#endif                // KORE_DEBUG
 
 #define KORE_ALLOC(size) mem_alloc((size), __FILE__, __LINE__)
 #define KORE_REALLOC(ptr, size) mem_realloc((ptr), (size), __FILE__, __LINE__)
@@ -637,7 +637,7 @@ static KMemoryHeader* g_memory_head        = NULL;
 static u64            g_memory_index       = 0; // Global index for allocations
 static u64            g_memory_break_index = 0; // Index to break on allocation
 #        endif // KORE_TEST
-#    endif     // KORE_DEBUG
+#    endif                // KORE_DEBUG
 
 void* mem_alloc(usize size, const char* file, int line)
 {
