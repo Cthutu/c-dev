@@ -213,51 +213,49 @@ internal void intern_maybe_grow(Interner* interner)
         return;
     }
 
-    u64 new_cap  = interner->capacity ? interner->capacity * 2 : 8;
+    u64 old_cap  = interner->capacity;
+    u64 new_cap  = old_cap ? old_cap * 2 : 8;
     u64 new_mask = new_cap - 1;
 
-    // Allocate new slots block
-    array_reserve(interner->slots, new_cap);
-    memset(&interner->slots[interner->capacity],
-           0,
-           sizeof(InternSlot) * (new_cap - interner->capacity));
+    Array(InternSlot) new_slots = NULL;
+    array_reserve(new_slots, new_cap);
+    memset(new_slots, 0, sizeof(InternSlot) * new_cap);
 
     // Reinsert existing entries using Robin Hood hashing
-    for (u64 j = 0; j < interner->capacity; ++j) {
+    for (u64 j = 0; j < old_cap; ++j) {
         InternSlot* old_slot = &interner->slots[j];
         if (old_slot->hash == 0) {
             continue;
         }
 
-        // Reinsert this entry
-        u64 i   = old_slot->hash & new_mask;
-        u64 psl = 0;
+        InternSlot entry = *old_slot;
+        u64        i     = entry.hash & new_mask;
+        entry.psl        = 0;
 
         for (;;) {
-            InternSlot* slot = &interner->slots[i];
+            InternSlot* slot = &new_slots[i];
             if (slot->hash == 0) {
                 // Slot is empty - insert here
-                *slot     = *old_slot;
-                slot->psl = psl;
+                *slot     = entry;
+                slot->psl = entry.psl;
                 break;
             }
 
-            if (psl > slot->psl) {
+            if (entry.psl > slot->psl) {
                 // Robin Hood: displace the richer entry
-
-                // Swap what we want to insert with what's in the slot
                 InternSlot tmp = *slot;
-                *slot          = *old_slot;
-                slot->psl      = psl;
-                *old_slot      = tmp;
-                psl            = tmp.psl;
+                *slot          = entry;
+                slot->psl      = entry.psl;
+                entry          = tmp;
             }
 
             i = (i + 1) & new_mask;
-            ++psl;
+            ++entry.psl;
         }
     }
 
+    array_free(interner->slots);
+    interner->slots         = new_slots;
     interner->capacity      = new_cap;
     interner->capacity_mask = new_mask;
 }
@@ -271,10 +269,12 @@ string intern_add(Interner* interner, string str)
     u64 i   = h & interner->capacity_mask;
     u64 psl = 0;
 
-    InternedString* insert_str  = NULL;
-    u64             insert_hash = h;
-    u8              insert_len  = (u8)str.count;
-    u8*             insert_data = str.data;
+    InternedString* insert_str        = NULL;
+    InternedString* original_str      = NULL;
+    bool            original_inserted = false;
+    u64             insert_hash       = h;
+    u8              insert_len        = (u8)str.count;
+    u8*             insert_data       = str.data;
 
     for (;;) {
         InternSlot* slot = &interner->slots[i];
@@ -284,7 +284,7 @@ string intern_add(Interner* interner, string str)
             // Allocate InternedString for what we're inserting if not done yet
             if (!insert_str) {
                 usize num_bytes_to_alloc =
-                    sizeof(u64) + sizeof(u8) + insert_len;
+                    sizeof(InternedString) + insert_len;
                 insert_str =
                     (InternedString*)arena_alloc_align(&interner->intern_arena,
                                                        num_bytes_to_alloc,
@@ -299,13 +299,20 @@ string intern_add(Interner* interner, string str)
             slot->str  = insert_str;
 
             interner->count++;
-            return (string){.data = insert_str->str, .count = insert_str->len};
+            InternedString* result =
+                original_inserted ? original_str : insert_str;
+            return (string){.data = result->str, .count = result->len};
         }
 
         if (slot->hash == insert_hash && slot->str->len == insert_len &&
             memcmp(slot->str->str, insert_data, insert_len) == 0) {
             // Found matching string - return it
-            return (string){.data = slot->str->str, .count = slot->str->len};
+            if (!original_inserted) {
+                return (string){.data = slot->str->str,
+                                .count = slot->str->len};
+            }
+            return (string){.data = original_str->str,
+                            .count = original_str->len};
         }
 
         if (psl > slot->psl) {
@@ -314,7 +321,7 @@ string intern_add(Interner* interner, string str)
             // Allocate InternedString for what we're inserting if not done yet
             if (!insert_str) {
                 usize num_bytes_to_alloc =
-                    sizeof(u64) + sizeof(u8) + insert_len;
+                    sizeof(InternedString) + insert_len;
                 insert_str =
                     (InternedString*)arena_alloc_align(&interner->intern_arena,
                                                        num_bytes_to_alloc,
@@ -332,6 +339,11 @@ string intern_add(Interner* interner, string str)
             slot->hash               = insert_hash;
             slot->psl                = psl;
             slot->str                = insert_str;
+
+            if (!original_inserted) {
+                original_inserted = true;
+                original_str      = insert_str;
+            }
 
             // Now we need to insert the displaced entry
             insert_hash              = tmp_hash;
