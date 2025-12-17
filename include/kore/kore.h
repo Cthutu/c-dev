@@ -214,6 +214,23 @@ typedef const char* cstr; // Constant string type
 
 //------------------------------------------------------------------------------[Memory]
 
+#if defined(KORE_IMPLEMENTATION) || defined(KORE_TEST)
+typedef struct KMemoryHeader_t {
+    usize size; // Number of bytes allocated
+
+#    if KORE_DEBUG
+    const char* file;  // File where the allocation was made
+    int         line;  // Line number where the allocation was made
+    u64         index; // Index of the allocation for debugging purposes
+
+    struct KMemoryHeader_t* next; // Pointer to the next header in a linked list
+    bool leaked; // Flag to indicate if this block was leaked and therefore
+                 // should not be in the linked list.  This is used to mark
+                 // allocations with application lifetimes.
+#    endif       // KORE_DEBUG
+} KMemoryHeader;
+#endif // KORE_IMPLEMENTATION || KORE_TEST
+
 void* mem_alloc(usize size, const char* file, int line);
 void* mem_realloc(void* ptr, usize size, const char* file, int line);
 void* mem_free(void* ptr, const char* file, int line);
@@ -228,6 +245,11 @@ void mem_check(void* ptr);
 void  mem_print_leaks(void);
 usize mem_get_allocation_count(void);
 usize mem_get_total_allocated(void);
+#    if defined(KORE_TEST)
+extern KMemoryHeader* g_memory_head;
+extern u64            g_memory_index;
+extern u64            g_memory_break_index;
+#    endif // KORE_TEST
 #endif // KORE_DEBUG
 
 #define KORE_ALLOC(size) mem_alloc((size), __FILE__, __LINE__)
@@ -264,12 +286,51 @@ typedef struct KArrayHeader_t {
     __array_safe((a), __array_bytes_capacity(a) / sizeof(*(a)))
 #define array_count(a) __array_safe((a), __array_count(a))
 
-// Forward declaration for internal array function
-static void* array_maybe_grow(void* array,
-                              usize element_size,
-                              usize required_capacity,
-                              cstr  file,
-                              int   line);
+// Internal array growth function
+static inline void* array_maybe_grow(void* array,
+                                     usize element_size,
+                                     usize required_capacity,
+                                     cstr  file,
+                                     int   line)
+{
+    if (!array) {
+        // Initial allocation
+        usize initial_capacity = 4;
+        if (required_capacity > initial_capacity) {
+            initial_capacity = required_capacity;
+        }
+
+        KArrayHeader* header = (KArrayHeader*)mem_alloc(
+            sizeof(KArrayHeader) + initial_capacity * element_size, file, line);
+        header->count = 0; // No elements yet
+
+        return (void*)(header + 1);
+    }
+
+    // Calculate current capacity from memory size
+    KArrayHeader* header            = (KArrayHeader*)array - 1;
+    usize current_capacity_bytes    = mem_size(header) - sizeof(KArrayHeader);
+    usize current_capacity_elements = current_capacity_bytes / element_size;
+
+    if (required_capacity <= current_capacity_elements) {
+        return array; // No growth needed
+    }
+
+    // Need to grow the array
+    usize new_capacity_elements = current_capacity_elements * 2;
+    if (new_capacity_elements < required_capacity) {
+        new_capacity_elements = required_capacity;
+    }
+
+    usize         new_capacity_bytes = new_capacity_elements * element_size;
+    KArrayHeader* old_header         = header;
+    KArrayHeader* new_header         = (KArrayHeader*)mem_realloc(
+        old_header, sizeof(KArrayHeader) + new_capacity_bytes, file, line);
+
+    // count is preserved by realloc
+
+    return (void*)(new_header + 1);
+}
 
 #define array_push(a, ...)                                                     \
     do {                                                                       \
@@ -565,27 +626,18 @@ static u64 g_random_state = 0;
 
 //------------------------------------------------------------------------------[Memory]
 
-typedef struct KMemoryHeader_t {
-    usize size; // Number of bytes allocated
-
-#    if KORE_DEBUG
-    const char* file;  // File where the allocation was made
-    int         line;  // Line number where the allocation was made
-    u64         index; // Index of the allocation for debugging purposes
-
-    struct KMemoryHeader_t* next; // Pointer to the next header in a linked list
-    bool leaked; // Flag to indicate if this block was leaked and therefore
-                 // should not be in the linked list.  This is used to mark
-                 // allocations with application lifetimes.
-#    endif       // KORE_DEBUG
-} KMemoryHeader;
-
 // Global pointer to the head of the linked list of allocated memory blocks
 #    if KORE_DEBUG
+#        if defined(KORE_TEST)
+KMemoryHeader* g_memory_head        = NULL;
+u64            g_memory_index       = 0; // Global index for allocations
+u64            g_memory_break_index = 0; // Index to break on allocation
+#        else
 static KMemoryHeader* g_memory_head        = NULL;
 static u64            g_memory_index       = 0; // Global index for allocations
 static u64            g_memory_break_index = 0; // Index to break on allocation
-#    endif                           // KORE_DEBUG
+#        endif // KORE_TEST
+#    endif     // KORE_DEBUG
 
 void* mem_alloc(usize size, const char* file, int line)
 {
@@ -838,51 +890,7 @@ void mem_check(void* ptr)
 
 //------------------------------------------------------------------------------[Array]
 
-// Internal array growth function
-static void* array_maybe_grow(void* array,
-                              usize element_size,
-                              usize required_capacity,
-                              cstr  file,
-                              int   line)
-{
-    if (!array) {
-        // Initial allocation
-        usize initial_capacity = 4;
-        if (required_capacity > initial_capacity) {
-            initial_capacity = required_capacity;
-        }
-
-        KArrayHeader* header = (KArrayHeader*)mem_alloc(
-            sizeof(KArrayHeader) + initial_capacity * element_size, file, line);
-        header->count = 0; // No elements yet
-
-        return (void*)(header + 1);
-    }
-
-    // Calculate current capacity from memory size
-    KArrayHeader* header            = (KArrayHeader*)array - 1;
-    usize current_capacity_bytes    = mem_size(header) - sizeof(KArrayHeader);
-    usize current_capacity_elements = current_capacity_bytes / element_size;
-
-    if (required_capacity <= current_capacity_elements) {
-        return array; // No growth needed
-    }
-
-    // Need to grow the array
-    usize new_capacity_elements = current_capacity_elements * 2;
-    if (new_capacity_elements < required_capacity) {
-        new_capacity_elements = required_capacity;
-    }
-
-    usize         new_capacity_bytes = new_capacity_elements * element_size;
-    KArrayHeader* old_header         = header;
-    KArrayHeader* new_header         = (KArrayHeader*)mem_realloc(
-        old_header, sizeof(KArrayHeader) + new_capacity_bytes, file, line);
-
-    // count is preserved by realloc
-
-    return (void*)(new_header + 1);
-}
+// Array growth implementation is header-only to satisfy internal linkage use.
 
 //------------------------------------------------------------------------------[Arena]
 
