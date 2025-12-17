@@ -4,6 +4,7 @@
 
 #include <kore/kore.h>
 #include <kore/intern.h>
+#include <kore/sexp.h>
 #include <kore/string.h>
 #include <test/test.h>
 
