@@ -1,6 +1,7 @@
 #define KORE_IMPLEMENTATION
 #include <kore/intern.h>
 #include <kore/kore.h>
+#include <kore/sexp.h>
 
 int kmain(int argc, char** argv)
 {
@@ -14,9 +15,11 @@ int kmain(int argc, char** argv)
     string test_str   = intern_cstr(&interner, "Hello, World!");
     string test_str_2 = intern_cstr(&interner, "Hello, World!");
 
-    prn("Interned string 1 (%p): " STRINGP, test_str.data, STRINGV(test_str));
+    prn("Interned string 1 (%p): " STRINGP,
+        intern_get_info(test_str),
+        STRINGV(test_str));
     prn("Interned string 2 (%p): " STRINGP,
-        test_str_2.data,
+        intern_get_info(test_str_2),
         STRINGV(test_str_2));
 
     return 0;
