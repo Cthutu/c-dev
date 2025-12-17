@@ -1,5 +1,4 @@
-#define TEST_IMPLEMENTATION
-#define KORE_IMPLEMENTATION
+#define KORE_TEST 1
 
 #include <kore/kore.h>
 #include <string.h>
@@ -1013,7 +1012,3 @@ TEST_CASE(time, now_advances)
     TEST_ASSERT_GT(end, start);
     TEST_ASSERT_GT(time_duration_to_ms(time_elapsed(start, end)), 0);
 }
-
-TEST_SUITE_BEGIN()
-RUN_ALL_TESTS();
-TEST_SUITE_END()
