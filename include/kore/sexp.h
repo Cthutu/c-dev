@@ -48,6 +48,7 @@ Atom sexp_make_f32(f32 v);
 Atom sexp_make_null(void);
 Atom sexp_make_cons(SexpContext* ctx, Atom car, Atom cdr);
 Atom sexp_make_link(SexpCons* cons);
+Atom sexp_make_short_string(string str);
 
 SexpCons* sexp_alloc_cons(SexpContext* ctx, Atom head, Atom tail);
 SexpCons* sexp_alloc_list(SexpContext* ctx, usize count);
@@ -63,6 +64,8 @@ u32  sexp_get_type(Atom atom);
 bool sexp_is_null(Atom atom);
 bool sexp_is_true(Atom atom);
 bool sexp_is_false(Atom atom);
+
+string sexp_get_short_string(Atom atom);
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -158,20 +161,51 @@ Atom sexp_make_link(SexpCons* cons)
     return sexp_make_atom(ATOM_TYPE_CONS, (u64)(uintptr_t)cons);
 }
 
+Atom sexp_make_short_string(string str)
+{
+    KORE_ASSERT(str.count <= 7,
+                "String too long for short string atom (max 7 bytes).");
+
+    union {
+        u64 value;
+        u8  bytes[8];
+    } conv;
+
+    conv.value = 0;
+    for (usize i = 0; i < str.count; i++) {
+        conv.bytes[i + 1] = str.data[i];
+    }
+    conv.bytes[0] = ((u8)str.count << 4) |
+                    ATOM_TYPE_SHORT_STRING; // Store length in highest
+
+    return conv.value;
+}
+
 void* sexp_get_ptr(Atom atom)
 {
+    KORE_ASSERT((atom & ATOM_TYPE_MASK) == ATOM_TYPE_PTR,
+                "Atom is not a pointer type.");
     return (void*)(uintptr_t)(atom & ~ATOM_TYPE_MASK);
 }
 
 i32 sexp_get_i32(Atom atom)
 {
+    KORE_ASSERT((atom & ATOM_TYPE_MASK) == ATOM_TYPE_I32,
+                "Atom is not an i32 type.");
     return (i32)((i64)(atom & ~ATOM_TYPE_MASK) >> 4);
 }
 
-u32 sexp_get_u32(Atom atom) { return (u32)((atom & ~ATOM_TYPE_MASK) >> 4); }
+u32 sexp_get_u32(Atom atom)
+{
+    KORE_ASSERT((atom & ATOM_TYPE_MASK) == ATOM_TYPE_U32,
+                "Atom is not a u32 type.");
+    return (u32)((atom & ~ATOM_TYPE_MASK) >> 4);
+}
 
 f32 sexp_get_f32(Atom atom)
 {
+    KORE_ASSERT((atom & ATOM_TYPE_MASK) == ATOM_TYPE_F32,
+                "Atom is not a f32 type.");
     union {
         f32 f;
         u32 u;
@@ -182,14 +216,34 @@ f32 sexp_get_f32(Atom atom)
 
 Atom sexp_get_head(Atom atom)
 {
+    KORE_ASSERT((atom & ATOM_TYPE_MASK) == ATOM_TYPE_CONS,
+                "Atom is not a cons type.");
     SexpCons* cons = (SexpCons*)(uintptr_t)(atom & ~ATOM_TYPE_MASK);
     return cons->head;
 }
 
 Atom sexp_get_tail(Atom atom)
 {
+    KORE_ASSERT((atom & ATOM_TYPE_MASK) == ATOM_TYPE_CONS,
+                "Atom is not a cons type.");
     SexpCons* cons = (SexpCons*)(uintptr_t)(atom & ~ATOM_TYPE_MASK);
     return cons->tail;
+}
+
+string sexp_get_short_string(Atom atom)
+{
+    KORE_ASSERT((atom & ATOM_TYPE_MASK) == ATOM_TYPE_SHORT_STRING,
+                "Atom is not a short string type.");
+
+    union {
+        u64 value;
+        u8  bytes[8];
+    } conv;
+
+    conv.value = atom;
+
+    u8 len     = conv.bytes[0] >> 4;
+    return (string){.data = &conv.bytes[1], .count = len};
 }
 
 u32 sexp_get_type(Atom atom) { return (u32)(atom & ATOM_TYPE_MASK); }

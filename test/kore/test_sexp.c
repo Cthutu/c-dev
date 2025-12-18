@@ -82,3 +82,31 @@ TEST_CASE(sexp, alloc_list_links)
 
     sexp_context_done(&ctx);
 }
+
+TEST_CASE(sexp, short_strings_basic)
+{
+    string str = string_from_cstr("kore");
+
+    Atom atom  = sexp_make_short_string(str);
+    TEST_ASSERT_EQ(sexp_get_type(atom), ATOM_TYPE_SHORT_STRING);
+
+    string decoded = sexp_get_short_string(atom);
+    TEST_ASSERT_EQ(decoded.count, str.count);
+    TEST_ASSERT(memcmp(decoded.data, str.data, str.count) == 0);
+}
+
+TEST_CASE(sexp, short_strings_edge_lengths)
+{
+    u8     max_data[]  = {'1', '2', '3', '4', '5', '6', '7'};
+    string max_str     = string_from(max_data, sizeof(max_data));
+    Atom   max_atom    = sexp_make_short_string(max_str);
+
+    string max_decoded = sexp_get_short_string(max_atom);
+    TEST_ASSERT_EQ(max_decoded.count, max_str.count);
+    TEST_ASSERT(memcmp(max_decoded.data, max_data, sizeof(max_data)) == 0);
+
+    string empty       = string_from_cstr("");
+    Atom   empty_atom  = sexp_make_short_string(empty);
+    string empty_value = sexp_get_short_string(empty_atom);
+    TEST_ASSERT_EQ(empty_value.count, 0);
+}
