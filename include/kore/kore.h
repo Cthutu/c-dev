@@ -219,13 +219,13 @@ void* mem_realloc(void* ptr, usize size, const char* file, int line);
 void* mem_free(void* ptr, const char* file, int line);
 
 usize mem_size(const void* ptr);
-void mem_leak(void* ptr);
+void  mem_leak(void* ptr);
 
 void mem_check(void* ptr);
 
 // Memory debugging utilities
 #if KORE_DEBUG
-void mem_print_leaks(void);
+void  mem_print_leaks(void);
 usize mem_get_allocation_count(void);
 usize mem_get_total_allocated(void);
 #endif // KORE_DEBUG
@@ -335,7 +335,7 @@ static void* array_maybe_grow(void* array,
 
 // OS-based arena with reserved memory pages
 typedef struct {
-    u8* memory;           // Base pointer to arena - never changes
+    u8*   memory;         // Base pointer to arena - never changes
     usize cursor;         // Current allocation cursor
     usize committed_size; // Number of bytes currently committed
     usize reserved_size;  // Total number of bytes reserved (maximum capacity)
@@ -345,11 +345,11 @@ typedef struct {
 
 // Used to build arrays within an arena
 typedef struct {
-    Arena* arena;       // Arena being used
-    usize count;        // Number of elements currently in array
-    usize alignment;    // Alignment of each element
-    usize element_size; // Size of each element
-    void* start;        // Start of the array in the arena
+    Arena* arena;        // Arena being used
+    usize  count;        // Number of elements currently in array
+    usize  alignment;    // Alignment of each element
+    usize  element_size; // Size of each element
+    void*  start;        // Start of the array in the arena
 } ArenaSession;
 
 //
@@ -373,11 +373,11 @@ void arena_done(Arena* arena);
 //
 
 void* arena_alloc(Arena* arena, usize size);
-void arena_align(Arena* arena, usize align);
+void  arena_align(Arena* arena, usize align);
 void* arena_alloc_align(Arena* arena, usize size, usize align);
 
-u8* arena_formatv(Arena* arena, cstr fmt, va_list args);
-u8* arena_format(Arena* arena, cstr fmt, ...);
+u8*  arena_formatv(Arena* arena, cstr fmt, va_list args);
+u8*  arena_format(Arena* arena, cstr fmt, ...);
 void arena_null_terminate(Arena* arena);
 
 //
@@ -385,8 +385,8 @@ void arena_null_terminate(Arena* arena);
 //
 
 void* arena_store(Arena* arena);
-void arena_restore(Arena* arena, void* mark);
-void arena_reset(Arena* arena);
+void  arena_restore(Arena* arena, void* mark);
+void  arena_reset(Arena* arena);
 
 //
 // Arena state
@@ -399,9 +399,9 @@ u32 arena_offset(Arena* arena, void* p);
 //
 
 void arena_session_init(ArenaSession* session,
-                        Arena* arena,
-                        usize alignment,
-                        usize element_size);
+                        Arena*        arena,
+                        usize         alignment,
+                        usize         element_size);
 void arena_session_undo(ArenaSession* session);
 
 void* arena_session_alloc(ArenaSession* session, usize count);
@@ -514,9 +514,9 @@ void eprn(const char* format, ...);
 typedef u64 TimePoint;
 typedef u64 TimeDuration;
 
-TimePoint time_now(void);
+TimePoint    time_now(void);
 TimeDuration time_elapsed(TimePoint start, TimePoint end);
-TimePoint time_add_duration(TimePoint time, TimeDuration duration);
+TimePoint    time_add_duration(TimePoint time, TimeDuration duration);
 
 void time_sleep_ms(u32 milliseconds);
 
@@ -535,9 +535,9 @@ TimeDuration time_from_ns(u64 nanoseconds);
 //------------------------------------------------------------------------------[Random]
 
 void random_seed(u64 seed);
-u64 random_u64(void);
-u64 random_range_u64(u64 min, u64 max);
-i64 random_range_i64(i64 min, i64 max);
+u64  random_u64(void);
+u64  random_range_u64(u64 min, u64 max);
+i64  random_range_i64(i64 min, i64 max);
 
 //------------------------------------------------------------------------------
 //------------------------------------------------------------------------------
@@ -560,7 +560,7 @@ i64 random_range_i64(i64 min, i64 max);
 
 //------------------------------------------------------------------------------[Globals]
 
-Mutex g_kore_output_mutex;
+Mutex      g_kore_output_mutex;
 static u64 g_random_state = 0;
 
 //------------------------------------------------------------------------------[Memory]
@@ -569,9 +569,9 @@ typedef struct KMemoryHeader_t {
     usize size; // Number of bytes allocated
 
 #    if KORE_DEBUG
-    const char* file; // File where the allocation was made
-    int line;         // Line number where the allocation was made
-    u64 index;        // Index of the allocation for debugging purposes
+    const char* file;  // File where the allocation was made
+    int         line;  // Line number where the allocation was made
+    u64         index; // Index of the allocation for debugging purposes
 
     struct KMemoryHeader_t* next; // Pointer to the next header in a linked list
     bool leaked; // Flag to indicate if this block was leaked and therefore
@@ -582,12 +582,13 @@ typedef struct KMemoryHeader_t {
 
 // Global pointer to the head of the linked list of allocated memory blocks
 #    if KORE_DEBUG
-static KMemoryHeader* g_memory_head = NULL;
-static u64 g_memory_index           = 0; // Global index for allocations
-static u64 g_memory_break_index     = 0; // Index to break on allocation
+static KMemoryHeader* g_memory_head        = NULL;
+static u64            g_memory_index       = 0; // Global index for allocations
+static u64            g_memory_break_index = 0; // Index to break on allocation
 #    endif                           // KORE_DEBUG
 
-void* mem_alloc(usize size, const char* file, int line) {
+void* mem_alloc(usize size, const char* file, int line)
+{
     KMemoryHeader* header =
         (KMemoryHeader*)malloc(sizeof(KMemoryHeader) + size);
     if (!header) {
@@ -616,7 +617,8 @@ void* mem_alloc(usize size, const char* file, int line) {
     return (void*)(header + 1);
 }
 
-void* mem_realloc(void* ptr, usize size, const char* file, int line) {
+void* mem_realloc(void* ptr, usize size, const char* file, int line)
+{
     if (!ptr) {
         return mem_alloc(size, file, line);
     }
@@ -674,7 +676,8 @@ void* mem_realloc(void* ptr, usize size, const char* file, int line) {
     return (void*)(header + 1);
 }
 
-void* mem_free(void* ptr, const char* file, int line) {
+void* mem_free(void* ptr, const char* file, int line)
+{
     (void)file; // Suppress unused parameter warning
     (void)line; // Suppress unused parameter warning
 
@@ -705,7 +708,8 @@ void* mem_free(void* ptr, const char* file, int line) {
     return nullptr;
 }
 
-usize mem_size(const void* ptr) {
+usize mem_size(const void* ptr)
+{
     if (!ptr) {
         return 0;
     }
@@ -714,7 +718,8 @@ usize mem_size(const void* ptr) {
     return header->size;
 }
 
-void mem_leak(void* ptr) {
+void mem_leak(void* ptr)
+{
 #    if KORE_DEBUG
 
     if (!ptr) {
@@ -743,7 +748,8 @@ void mem_leak(void* ptr) {
 #    endif // KORE_DEBUG
 }
 
-void mem_break_on_alloc(u64 index) {
+void mem_break_on_alloc(u64 index)
+{
 #    if KORE_DEBUG
     g_memory_break_index = index;
 #    else
@@ -754,10 +760,11 @@ void mem_break_on_alloc(u64 index) {
 #    if KORE_DEBUG
 
 // Memory debugging utilities
-void mem_print_leaks(void) {
-    KMemoryHeader* current = g_memory_head;
-    usize leak_count       = 0;
-    usize total_leaked     = 0;
+void mem_print_leaks(void)
+{
+    KMemoryHeader* current      = g_memory_head;
+    usize          leak_count   = 0;
+    usize          total_leaked = 0;
 
     if (!current) {
         return;
@@ -787,8 +794,9 @@ void mem_print_leaks(void) {
          total_leaked);
 }
 
-usize mem_get_allocation_count(void) {
-    usize count            = 0;
+usize mem_get_allocation_count(void)
+{
+    usize          count   = 0;
     KMemoryHeader* current = g_memory_head;
 
     while (current) {
@@ -799,8 +807,9 @@ usize mem_get_allocation_count(void) {
     return count;
 }
 
-usize mem_get_total_allocated(void) {
-    usize total            = 0;
+usize mem_get_total_allocated(void)
+{
+    usize          total   = 0;
     KMemoryHeader* current = g_memory_head;
 
     while (current) {
@@ -813,7 +822,8 @@ usize mem_get_total_allocated(void) {
 
 #    endif // KORE_DEBUG
 
-void mem_check(void* ptr) {
+void mem_check(void* ptr)
+{
     if (!ptr) {
 
         eprn(ANSI_BOLD_RED
@@ -832,8 +842,9 @@ void mem_check(void* ptr) {
 static void* array_maybe_grow(void* array,
                               usize element_size,
                               usize required_capacity,
-                              cstr file,
-                              int line) {
+                              cstr  file,
+                              int   line)
+{
     if (!array) {
         // Initial allocation
         usize initial_capacity = 4;
@@ -863,9 +874,9 @@ static void* array_maybe_grow(void* array,
         new_capacity_elements = required_capacity;
     }
 
-    usize new_capacity_bytes = new_capacity_elements * element_size;
-    KArrayHeader* old_header = header;
-    KArrayHeader* new_header = (KArrayHeader*)mem_realloc(
+    usize         new_capacity_bytes = new_capacity_elements * element_size;
+    KArrayHeader* old_header         = header;
+    KArrayHeader* new_header         = (KArrayHeader*)mem_realloc(
         old_header, sizeof(KArrayHeader) + new_capacity_bytes, file, line);
 
     // count is preserved by realloc
@@ -880,7 +891,8 @@ typedef struct {
     usize reserve_granularity;
 } ArenaMemoryInfo;
 
-internal ArenaMemoryInfo get_arena_memory_info(void) {
+internal ArenaMemoryInfo get_arena_memory_info(void)
+{
 #    if KORE_OS_WINDOWS
     SYSTEM_INFO sys_info;
     GetSystemInfo(&sys_info);
@@ -899,7 +911,8 @@ internal ArenaMemoryInfo get_arena_memory_info(void) {
 #    endif
 }
 
-void _arena_init(Arena* arena, ArenaDefaultParams params) {
+void _arena_init(Arena* arena, ArenaDefaultParams params)
+{
     ArenaMemoryInfo mem_info = get_arena_memory_info();
 
     if (params.grow_rate == 0) {
@@ -955,7 +968,8 @@ void _arena_init(Arena* arena, ArenaDefaultParams params) {
     arena->grow_rate         = params.grow_rate;
 }
 
-void arena_done(Arena* arena) {
+void arena_done(Arena* arena)
+{
 #    if KORE_OS_WINDOWS
     VirtualFree(arena->memory, 0, MEM_RELEASE);
 #    elif KORE_OS_POSIX
@@ -967,7 +981,8 @@ void arena_done(Arena* arena) {
     memset(arena, 0, sizeof(Arena));
 }
 
-internal void _arena_ensure_room(Arena* arena, usize size) {
+internal void _arena_ensure_room(Arena* arena, usize size)
+{
     usize new_cursor = arena->cursor + size;
     if (new_cursor > arena->reserved_size) {
         eprn("Arena overflow: requested %zu bytes, but only %zu bytes "
@@ -1003,7 +1018,8 @@ internal void _arena_ensure_room(Arena* arena, usize size) {
     }
 }
 
-void* arena_alloc(Arena* arena, usize size) {
+void* arena_alloc(Arena* arena, usize size)
+{
     _arena_ensure_room(arena, size);
 
     void* ptr = arena->memory + arena->cursor;
@@ -1011,18 +1027,21 @@ void* arena_alloc(Arena* arena, usize size) {
     return ptr;
 }
 
-void arena_align(Arena* arena, usize align) {
+void arena_align(Arena* arena, usize align)
+{
     usize aligned_cursor = KORE_ALIGN_UP(arena->cursor, align);
     _arena_ensure_room(arena, aligned_cursor - arena->cursor);
     arena->cursor = aligned_cursor;
 }
 
-void* arena_alloc_align(Arena* arena, usize size, usize align) {
+void* arena_alloc_align(Arena* arena, usize size, usize align)
+{
     arena_align(arena, align);
     return arena_alloc(arena, size);
 }
 
-u8* arena_formatv(Arena* arena, cstr fmt, va_list args) {
+u8* arena_formatv(Arena* arena, cstr fmt, va_list args)
+{
     // Get the size of the formatted string.
     va_list args_copy;
     va_copy(args_copy, args);
@@ -1039,7 +1058,8 @@ u8* arena_formatv(Arena* arena, cstr fmt, va_list args) {
     return buffer;
 }
 
-u8* arena_format(Arena* arena, cstr fmt, ...) {
+u8* arena_format(Arena* arena, cstr fmt, ...)
+{
     va_list args;
     va_start(args, fmt);
     u8* result = arena_formatv(arena, fmt, args);
@@ -1047,14 +1067,16 @@ u8* arena_format(Arena* arena, cstr fmt, ...) {
     return result;
 }
 
-void arena_null_terminate(Arena* arena) {
+void arena_null_terminate(Arena* arena)
+{
     u8* ptr = (u8*)arena_alloc(arena, 1);
     *ptr    = '\0';
 }
 
 void* arena_store(Arena* arena) { return arena->memory + arena->cursor; }
 
-void arena_restore(Arena* arena, void* mark) {
+void arena_restore(Arena* arena, void* mark)
+{
     usize offset = (usize)((u8*)mark - arena->memory);
     KORE_ASSERT(offset <= arena->cursor, "Invalid arena restore point.");
     arena->cursor = offset;
@@ -1062,16 +1084,18 @@ void arena_restore(Arena* arena, void* mark) {
 
 void arena_reset(Arena* arena) { arena->cursor = 0; }
 
-u32 arena_offset(Arena* arena, void* p) {
+u32 arena_offset(Arena* arena, void* p)
+{
     return (u32)((u8*)p - arena->memory);
 }
 
 //------------------------------------------------------------------------------
 
 void arena_session_init(ArenaSession* session,
-                        Arena* arena,
-                        usize alignment,
-                        usize element_size) {
+                        Arena*        arena,
+                        usize         alignment,
+                        usize         element_size)
+{
     session->arena        = arena;
     session->count        = 0;
     session->alignment    = alignment;
@@ -1079,12 +1103,14 @@ void arena_session_init(ArenaSession* session,
     session->start        = arena_store(arena);
 }
 
-void arena_session_undo(ArenaSession* session) {
+void arena_session_undo(ArenaSession* session)
+{
     arena_restore(session->arena, session->start);
     session->count = 0;
 }
 
-void* arena_session_alloc(ArenaSession* session, usize count) {
+void* arena_session_alloc(ArenaSession* session, usize count)
+{
     void* ptr = arena_alloc_align(
         session->arena, count * session->element_size, session->alignment);
     session->count += count;
@@ -1121,7 +1147,8 @@ void mutex_unlock(Mutex* mutex) { pthread_mutex_unlock(mutex); }
 
 //------------------------------------------------------------------------------[Output]
 
-internal cstr _format_output(cstr format, va_list args, usize* out_size) {
+internal cstr _format_output(cstr format, va_list args, usize* out_size)
+{
     thread_local local_persist Array(char) print_buffer = NULL;
 
     // Get the size of the formatted string.
@@ -1142,7 +1169,8 @@ internal cstr _format_output(cstr format, va_list args, usize* out_size) {
 
 #    if KORE_OS_POSIX
 
-internal void fprv(int fd, cstr format, va_list args) {
+internal void fprv(int fd, cstr format, va_list args)
+{
     usize size;
     mutex_lock(&g_kore_output_mutex);
     cstr output = _format_output(format, args, &size);
@@ -1155,14 +1183,15 @@ void eprv(cstr format, va_list args) { fprv(STDERR_FILENO, format, args); }
 
 #    elif defined(KORE_OS_WINDOWS)
 
-internal void fprv(HANDLE handle, cstr format, va_list args) {
+internal void fprv(HANDLE handle, cstr format, va_list args)
+{
     usize size;
     mutex_lock(&g_kore_output_mutex);
     cstr output = _format_output(format, args, &size);
 
     // Write to the file handle.
     DWORD console_mode;
-    BOOL is_console = GetConsoleMode(handle, &console_mode);
+    BOOL  is_console = GetConsoleMode(handle, &console_mode);
 
     DWORD bytes_written;
     if (is_console) {
@@ -1173,11 +1202,13 @@ internal void fprv(HANDLE handle, cstr format, va_list args) {
     mutex_unlock(&g_kore_output_mutex);
 }
 
-void prv(cstr format, va_list args) {
+void prv(cstr format, va_list args)
+{
     fprv(GetStdHandle(STD_OUTPUT_HANDLE), format, args);
 }
 
-void eprv(cstr format, va_list args) {
+void eprv(cstr format, va_list args)
+{
     fprv(GetStdHandle(STD_ERROR_HANDLE), format, args);
 }
 
@@ -1186,14 +1217,16 @@ void eprv(cstr format, va_list args) {
 
 #    endif // KORE_OS_POSIX
 
-void pr(cstr format, ...) {
+void pr(cstr format, ...)
+{
     va_list args;
     va_start(args, format);
     prv(format, args);
     va_end(args);
 }
 
-void prn(cstr format, ...) {
+void prn(cstr format, ...)
+{
     va_list args;
     va_start(args, format);
     prv(format, args);
@@ -1201,14 +1234,16 @@ void prn(cstr format, ...) {
     va_end(args);
 }
 
-void epr(cstr format, ...) {
+void epr(cstr format, ...)
+{
     va_list args;
     va_start(args, format);
     eprv(format, args);
     va_end(args);
 }
 
-void eprn(cstr format, ...) {
+void eprn(cstr format, ...)
+{
     va_list args;
     va_start(args, format);
     eprv(format, args);
@@ -1220,7 +1255,8 @@ void eprn(cstr format, ...) {
 
 #    if KORE_OS_WINDOWS
 
-static u64 time_frequency(void) {
+static u64 time_frequency(void)
+{
     local_persist u64 frequency = 0;
     if (frequency == 0) {
         LARGE_INTEGER value;
@@ -1230,65 +1266,78 @@ static u64 time_frequency(void) {
     return frequency;
 }
 
-TimePoint time_now(void) {
+TimePoint time_now(void)
+{
     LARGE_INTEGER counter;
     QueryPerformanceCounter(&counter);
     return (TimePoint)counter.QuadPart;
 }
 
-TimeDuration time_elapsed(TimePoint start, TimePoint end) {
+TimeDuration time_elapsed(TimePoint start, TimePoint end)
+{
     return (TimeDuration)(end - start);
 }
 
-TimePoint time_add_duration(TimePoint time, TimeDuration duration) {
+TimePoint time_add_duration(TimePoint time, TimeDuration duration)
+{
     return time + duration;
 }
 
 void time_sleep_ms(u32 milliseconds) { Sleep(milliseconds); }
 
-u64 time_duration_to_secs(TimeDuration duration) {
+u64 time_duration_to_secs(TimeDuration duration)
+{
     u64 frequency = time_frequency();
     return duration / frequency;
 }
 
-u64 time_duration_to_ms(TimeDuration duration) {
+u64 time_duration_to_ms(TimeDuration duration)
+{
     u64 frequency = time_frequency();
     return (duration * 1000) / frequency;
 }
 
-u64 time_duration_to_us(TimeDuration duration) {
+u64 time_duration_to_us(TimeDuration duration)
+{
     u64 frequency = time_frequency();
     return (duration * 1000000) / frequency;
 }
 
-u64 time_duration_to_ns(TimeDuration duration) {
+u64 time_duration_to_ns(TimeDuration duration)
+{
     u64 frequency = time_frequency();
     return (duration * 1000000000) / frequency;
 }
 
-f64 time_secs(TimeDuration duration) {
+f64 time_secs(TimeDuration duration)
+{
     return (f64)duration / (f64)time_frequency();
 }
 
-TimeDuration time_from_secs(u64 seconds) {
+TimeDuration time_from_secs(u64 seconds)
+{
     return (TimeDuration)(seconds * time_frequency());
 }
 
-TimeDuration time_from_ms(u64 milliseconds) {
+TimeDuration time_from_ms(u64 milliseconds)
+{
     return (TimeDuration)((milliseconds * time_frequency()) / 1000);
 }
 
-TimeDuration time_from_us(u64 microseconds) {
+TimeDuration time_from_us(u64 microseconds)
+{
     return (TimeDuration)((microseconds * time_frequency()) / 1000000);
 }
 
-TimeDuration time_from_ns(u64 nanoseconds) {
+TimeDuration time_from_ns(u64 nanoseconds)
+{
     return (TimeDuration)((nanoseconds * time_frequency()) / 1000000000);
 }
 
 #    elif KORE_OS_POSIX
 
-static inline TimePoint _time_now_raw(void) {
+static inline TimePoint _time_now_raw(void)
+{
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (TimePoint)ts.tv_sec * 1000000000ull + (TimePoint)ts.tv_nsec;
@@ -1296,22 +1345,26 @@ static inline TimePoint _time_now_raw(void) {
 
 TimePoint time_now(void) { return _time_now_raw(); }
 
-TimeDuration time_elapsed(TimePoint start, TimePoint end) {
+TimeDuration time_elapsed(TimePoint start, TimePoint end)
+{
     return (TimeDuration)(end - start);
 }
 
-TimePoint time_add_duration(TimePoint time, TimeDuration duration) {
+TimePoint time_add_duration(TimePoint time, TimeDuration duration)
+{
     return time + duration;
 }
 
-void time_sleep_ms(u32 milliseconds) {
+void time_sleep_ms(u32 milliseconds)
+{
     struct timespec req;
     req.tv_sec  = (time_t)(milliseconds / 1000);
     req.tv_nsec = (long)((milliseconds % 1000) * 1000000ul);
     nanosleep(&req, NULL);
 }
 
-u64 time_duration_to_secs(TimeDuration duration) {
+u64 time_duration_to_secs(TimeDuration duration)
+{
     return duration / 1000000000ull;
 }
 
@@ -1325,7 +1378,8 @@ f64 time_secs(TimeDuration duration) { return (f64)duration / 1000000000.0; }
 
 TimeDuration time_from_secs(u64 seconds) { return seconds * 1000000000ull; }
 
-TimeDuration time_from_ms(u64 milliseconds) {
+TimeDuration time_from_ms(u64 milliseconds)
+{
     return milliseconds * 1000000ull;
 }
 
@@ -1337,7 +1391,8 @@ TimeDuration time_from_ns(u64 nanoseconds) { return nanoseconds; }
 
 //------------------------------------------------------------------------------[Random]
 
-static inline u64 random_step(void) {
+static inline u64 random_step(void)
+{
     if (g_random_state == 0) {
         random_seed(time_now() | 1ull);
     }
@@ -1350,7 +1405,8 @@ static inline u64 random_step(void) {
     return x * 0x2545F4914F6CDD1Dull;
 }
 
-void random_seed(u64 seed) {
+void random_seed(u64 seed)
+{
     if (seed == 0) {
         seed = 0x9e3779b97f4a7c15ull;
     }
@@ -1359,13 +1415,15 @@ void random_seed(u64 seed) {
 
 u64 random_u64(void) { return random_step(); }
 
-u64 random_range_u64(u64 min, u64 max) {
+u64 random_range_u64(u64 min, u64 max)
+{
     KORE_ASSERT(min <= max, "random_range_u64: min must be <= max");
     u64 span = max - min + 1ull;
     return min + (random_step() % span);
 }
 
-i64 random_range_i64(i64 min, i64 max) {
+i64 random_range_i64(i64 min, i64 max)
+{
     KORE_ASSERT(min <= max, "random_range_i64: min must be <= max");
     u64 span = (u64)(max - min) + 1ull;
     return min + (i64)(random_step() % span);
@@ -1375,7 +1433,8 @@ i64 random_range_i64(i64 min, i64 max) {
 
 int kmain(int argc, char** argv);
 
-int main(int argc, char** argv) {
+int main(int argc, char** argv)
+{
     mutex_init(&g_kore_output_mutex);
 
 #    if KORE_OS_WINDOWS

@@ -28,9 +28,9 @@
 
 typedef struct {
     char name[MAX_CATEGORY_NAME_LENGTH];
-    int passed_tests;
-    int failed_tests;
-    int total_tests;
+    int  passed_tests;
+    int  failed_tests;
+    int  total_tests;
 } TestCategory;
 
 // Test registry for auto-discovery
@@ -47,7 +47,7 @@ typedef struct {
 typedef struct {
     const char* filter_category;
     const char* filter_test;
-    int help_requested;
+    int         help_requested;
 } TestOptions;
 
 // Test framework macros
@@ -71,11 +71,11 @@ typedef struct {
 #define TEST_ASSERT_EQ(a, b)                                                   \
     do {                                                                       \
         test_total_assertions++;                                               \
-        auto _test_val_a = (a);                                                \
-        auto _test_val_b = (b);                                                \
+        auto      _test_val_a = (a);                                           \
+        auto      _test_val_b = (b);                                           \
         /* Convert both to the wider type to avoid sign comparison */          \
-        long long _cmp_a = (long long)_test_val_a;                             \
-        long long _cmp_b = (long long)_test_val_b;                             \
+        long long _cmp_a      = (long long)_test_val_a;                        \
+        long long _cmp_b      = (long long)_test_val_b;                        \
         if (_cmp_a != _cmp_b) {                                                \
             printf("  " TEST_COLOUR_RED "✗ ASSERTION FAILED" TEST_COLOUR_RESET \
                    " at %s:%d\n",                                              \
@@ -150,11 +150,11 @@ typedef struct {
 #define TEST_ASSERT_GT(a, b)                                                   \
     do {                                                                       \
         test_total_assertions++;                                               \
-        auto _test_val_a = (a);                                                \
-        auto _test_val_b = (b);                                                \
+        auto      _test_val_a = (a);                                           \
+        auto      _test_val_b = (b);                                           \
         /* Convert both to the wider type to avoid sign comparison */          \
-        long long _cmp_a = (long long)_test_val_a;                             \
-        long long _cmp_b = (long long)_test_val_b;                             \
+        long long _cmp_a      = (long long)_test_val_a;                        \
+        long long _cmp_b      = (long long)_test_val_b;                        \
         if (_cmp_a <= _cmp_b) {                                                \
             printf("  " TEST_COLOUR_RED "✗ ASSERTION FAILED" TEST_COLOUR_RESET \
                    " at %s:%d\n",                                              \
@@ -174,11 +174,11 @@ typedef struct {
 #define TEST_ASSERT_LT(a, b)                                                   \
     do {                                                                       \
         test_total_assertions++;                                               \
-        auto _test_val_a = (a);                                                \
-        auto _test_val_b = (b);                                                \
+        auto      _test_val_a = (a);                                           \
+        auto      _test_val_b = (b);                                           \
         /* Convert both to the wider type to avoid sign comparison */          \
-        long long _cmp_a = (long long)_test_val_a;                             \
-        long long _cmp_b = (long long)_test_val_b;                             \
+        long long _cmp_a      = (long long)_test_val_a;                        \
+        long long _cmp_b      = (long long)_test_val_b;                        \
         if (_cmp_a >= _cmp_b) {                                                \
             printf("  " TEST_COLOUR_RED "✗ ASSERTION FAILED" TEST_COLOUR_RESET \
                    " at %s:%d\n",                                              \
@@ -198,11 +198,11 @@ typedef struct {
 #define TEST_ASSERT_GE(a, b)                                                   \
     do {                                                                       \
         test_total_assertions++;                                               \
-        auto _test_val_a = (a);                                                \
-        auto _test_val_b = (b);                                                \
+        auto      _test_val_a = (a);                                           \
+        auto      _test_val_b = (b);                                           \
         /* Convert both to the wider type to avoid sign comparison */          \
-        long long _cmp_a = (long long)_test_val_a;                             \
-        long long _cmp_b = (long long)_test_val_b;                             \
+        long long _cmp_a      = (long long)_test_val_a;                        \
+        long long _cmp_b      = (long long)_test_val_b;                        \
         if (_cmp_a < _cmp_b) {                                                 \
             printf("  " TEST_COLOUR_RED "✗ ASSERTION FAILED" TEST_COLOUR_RESET \
                    " at %s:%d\n",                                              \
@@ -222,11 +222,11 @@ typedef struct {
 #define TEST_ASSERT_LE(a, b)                                                   \
     do {                                                                       \
         test_total_assertions++;                                               \
-        auto _test_val_a = (a);                                                \
-        auto _test_val_b = (b);                                                \
+        auto      _test_val_a = (a);                                           \
+        auto      _test_val_b = (b);                                           \
         /* Convert both to the wider type to avoid sign comparison */          \
-        long long _cmp_a = (long long)_test_val_a;                             \
-        long long _cmp_b = (long long)_test_val_b;                             \
+        long long _cmp_a      = (long long)_test_val_a;                        \
+        long long _cmp_b      = (long long)_test_val_b;                        \
         if (_cmp_a > _cmp_b) {                                                 \
             printf("  " TEST_COLOUR_RED "✗ ASSERTION FAILED" TEST_COLOUR_RESET \
                    " at %s:%d\n",                                              \
@@ -246,7 +246,8 @@ typedef struct {
 #define TEST_CASE(category, name)                                              \
     void test_##category##_##name(void);                                       \
     __attribute__((constructor)) static void                                   \
-    register_test_##category##_##name(void) {                                  \
+    register_test_##category##_##name(void)                                    \
+    {                                                                          \
         test_register(test_##category##_##name, #category, #name);             \
     }                                                                          \
     void test_##category##_##name(void)
@@ -284,7 +285,8 @@ typedef struct {
     } while (0)
 
 #define TEST_SUITE_BEGIN()                                                     \
-    int kmain(int argc, char* argv[]) {                                        \
+    int kmain(int argc, char* argv[])                                          \
+    {                                                                          \
         TestOptions options = {0};                                             \
         test_parse_args(argc, argv, &options);                                 \
         if (options.help_requested) {                                          \
@@ -352,9 +354,9 @@ void test_register(void (*test_func)(void),
                    const char* name);
 void test_parse_args(int argc, char* argv[], TestOptions* options);
 void test_print_help(const char* program_name);
-int test_should_run(const char* category,
-                    const char* name,
-                    const TestOptions* options);
+int  test_should_run(const char*        category,
+                     const char*        name,
+                     const TestOptions* options);
 
 // Global test counters (declared here, defined in implementation)
 extern int test_total_tests;
@@ -366,11 +368,11 @@ extern int test_current_failures;
 
 // Global category tracking
 extern TestCategory test_categories[MAX_CATEGORIES];
-extern int test_category_count;
+extern int          test_category_count;
 
 // Global test registry
 extern RegisteredTest test_registry[MAX_REGISTERED_TESTS];
-extern int test_registry_count;
+extern int            test_registry_count;
 
 // Global verbosity flag (set at runtime from environment variable)
 extern int test_verbose_output;
@@ -387,18 +389,19 @@ int test_current_failures = 0;
 
 // Global category tracking
 TestCategory test_categories[MAX_CATEGORIES];
-int test_category_count = 0;
+int          test_category_count = 0;
 
 // Global test registry
 RegisteredTest test_registry[MAX_REGISTERED_TESTS];
-int test_registry_count = 0;
+int            test_registry_count = 0;
 
 // Global verbosity flag (set at runtime from environment variable)
-int test_verbose_output = TEST_VERBOSE;
+int test_verbose_output            = TEST_VERBOSE;
 
 void test_register(void (*test_func)(void),
                    const char* category,
-                   const char* name) {
+                   const char* name)
+{
     if (test_registry_count >= MAX_REGISTERED_TESTS) {
         return; // Registry full
     }
@@ -424,7 +427,8 @@ void test_register(void (*test_func)(void),
     test_registry_count++;
 }
 
-void test_parse_args(int argc, char* argv[], TestOptions* options) {
+void test_parse_args(int argc, char* argv[], TestOptions* options)
+{
     options->filter_category = NULL;
     options->filter_test     = NULL;
     options->help_requested  = 0;
@@ -446,7 +450,8 @@ void test_parse_args(int argc, char* argv[], TestOptions* options) {
     }
 }
 
-void test_print_help(const char* program_name) {
+void test_print_help(const char* program_name)
+{
     printf("Usage: %s [OPTIONS]\n\n", program_name);
     printf("Options:\n");
     printf("  -h, --help              Show this help message\n");
@@ -468,9 +473,10 @@ void test_print_help(const char* program_name) {
            program_name);
 }
 
-int test_should_run(const char* category,
-                    const char* name,
-                    const TestOptions* options) {
+int test_should_run(const char*        category,
+                    const char*        name,
+                    const TestOptions* options)
+{
     // If a specific test is requested, check if this is it
     if (options->filter_test) {
         return strcmp(name, options->filter_test) == 0;
@@ -485,7 +491,8 @@ int test_should_run(const char* category,
     return 1;
 }
 
-void test_init(void) {
+void test_init(void)
+{
     test_total_tests      = 0;
     test_passed_tests     = 0;
     test_failed_tests     = 0;
@@ -521,7 +528,8 @@ void test_init(void) {
     }
 }
 
-void test_track_category(const char* category) {
+void test_track_category(const char* category)
+{
     // Check if category already exists
     for (int i = 0; i < test_category_count; i++) {
         if (strcmp(test_categories[i].name, category) == 0) {
@@ -546,7 +554,8 @@ void test_track_category(const char* category) {
     }
 }
 
-void test_update_category_stats(const char* category, int passed, int failed) {
+void test_update_category_stats(const char* category, int passed, int failed)
+{
     for (int i = 0; i < test_category_count; i++) {
         if (strcmp(test_categories[i].name, category) == 0) {
             test_categories[i].passed_tests += passed;
@@ -557,7 +566,8 @@ void test_update_category_stats(const char* category, int passed, int failed) {
     }
 }
 
-void test_print_category_summary(void) {
+void test_print_category_summary(void)
+{
     if (test_category_count == 0) {
         return; // No categories to display
     }
@@ -582,7 +592,8 @@ void test_print_category_summary(void) {
     }
 }
 
-void test_summary(void) {
+void test_summary(void)
+{
     // Calculate column widths for proper alignment
     const int label_width = 20;
     const int value_width = 10;
@@ -701,7 +712,7 @@ void test_summary(void) {
     // Status message
     if (test_failed_tests == 0) {
         const char* status_msg = "🎉 ALL TESTS PASSED! 🎉";
-        int status_len =
+        int         status_len =
             23; // Length without emoji (emojis count as different widths)
         int status_padding_left = (total_width - status_len) / 2;
         int status_padding_right =
@@ -718,10 +729,10 @@ void test_summary(void) {
         }
         printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET "\n");
     } else {
-        const char* status_msg  = "❌ SOME TESTS FAILED ❌";
-        int status_len          = 23; // Length without emoji
-        int status_padding_left = (total_width - status_len) / 2;
-        int status_padding_right =
+        const char* status_msg          = "❌ SOME TESTS FAILED ❌";
+        int         status_len          = 23; // Length without emoji
+        int         status_padding_left = (total_width - status_len) / 2;
+        int         status_padding_right =
             total_width - status_len - status_padding_left;
 
         printf(TEST_COLOUR_BLUE "│" TEST_COLOUR_RESET);

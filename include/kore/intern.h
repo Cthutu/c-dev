@@ -20,25 +20,25 @@
 
 typedef struct {
     u64 hash;
-    u8 len;
-    u8 str[0];
+    u8  len;
+    u8  str[0];
 } InternedString;
 
 typedef struct {
-    u64 hash;            // 0 = empty
-    InternedString* str; // Pointer to string in intern arena
-    u64 psl;             // Probe sequence length
+    u64             hash; // 0 = empty
+    InternedString* str;  // Pointer to string in intern arena
+    u64             psl;  // Probe sequence length
 } InternSlot;
 
 typedef struct {
     Array(InternSlot) slots;
     Arena intern_arena;
-    u64 capacity;        // Always a power of two
-    u64 capacity_mask;   // capacity - 1
-    u64 count;           // Number of live entries
-    f64 max_load_factor; // How full should it get before we grow
-    void* slots_mark;    // Arena mark for slots
-    u64 seed;            // Hash seed
+    u64   capacity;        // Always a power of two
+    u64   capacity_mask;   // capacity - 1
+    u64   count;           // Number of live entries
+    f64   max_load_factor; // How full should it get before we grow
+    void* slots_mark;      // Arena mark for slots
+    u64   seed;            // Hash seed
 } Interner;
 
 typedef struct {
@@ -69,18 +69,21 @@ string intern_add(Interner* interner, string str);
 //------------------------------------------------------------------------------
 // Hashing
 
-internal inline u64 int_rot_left_64(u64 x, int k) {
+internal inline u64 int_rot_left_64(u64 x, int k)
+{
     return (x << k) | (x >> (64 - k));
 }
 
-internal inline u64 int_split_mix_64_next(u64* x) {
+internal inline u64 int_split_mix_64_next(u64* x)
+{
     u64 z = (*x += 0x9e3779b97f4a7c15ull);
     z     = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9ull;
     z     = (z ^ (z >> 27)) * 0x94d049bb133111ebull;
     return z ^ (z >> 31);
 }
 
-internal inline u64 int_hash_bytes_64(u8* data, u8 len, u64 seed) {
+internal inline u64 int_hash_bytes_64(u8* data, u8 len, u64 seed)
+{
     u64 s = seed;
     u64 h = 0;
 
@@ -112,7 +115,8 @@ internal inline u64 int_hash_bytes_64(u8* data, u8 len, u64 seed) {
     return h ? h : 0x9e3779b97f4a7c15ull;
 }
 
-internal inline u64 int_next_power_of_two(u64 v) {
+internal inline u64 int_next_power_of_two(u64 v)
+{
 #    if KORE_ARCH_X86_64 || (KORE_COMPILER_GCC || KORE_COMPILER_CLANG)
     if (v < 2) {
         return 2;
@@ -136,7 +140,8 @@ internal inline u64 int_next_power_of_two(u64 v) {
 //------------------------------------------------------------------------------
 // Interner
 
-void _intern_init(Interner* interner, InternInitParams params) {
+void _intern_init(Interner* interner, InternInitParams params)
+{
     arena_init(&interner->intern_arena);
     interner->max_load_factor = params.max_load_factor ? params.max_load_factor
                                                        : INTERN_MAX_LOAD_FACTOR;
@@ -152,7 +157,8 @@ void _intern_init(Interner* interner, InternInitParams params) {
     memset(interner->slots, 0, sizeof(InternSlot) * interner->capacity);
 }
 
-internal inline bool intern_load_exceeded(Interner* interner) {
+internal inline bool intern_load_exceeded(Interner* interner)
+{
     return (f64)interner->count >
            interner->max_load_factor * (f64)interner->capacity;
 }

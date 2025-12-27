@@ -22,9 +22,9 @@ typedef struct {
 
 typedef struct {
     MatrixColumns columns;
-    TermSize last_fb_dim;
-    u32 rng_state;
-    TimePoint start_time;
+    TermSize      last_fb_dim;
+    u32           rng_state;
+    TimePoint     start_time;
 } Matrix;
 
 void matrix_init(Matrix* matrix);
@@ -44,7 +44,8 @@ void matrix_shutdown(Matrix* matrix);
 //------------------------------------------------------------------------------
 
 static void
-matrix_reset_column(MatrixColumns* columns, u16 x, u16 height, u32* rng_state) {
+matrix_reset_column(MatrixColumns* columns, u16 x, u16 height, u32* rng_state)
+{
     if (height == 0) {
         columns->head[x]    = 0;
         columns->speed[x]   = 1;
@@ -66,7 +67,7 @@ matrix_reset_column(MatrixColumns* columns, u16 x, u16 height, u32* rng_state) {
 
     columns->head[x] = (i16) - (r % (height + 1));
     // Weight towards slow speeds: mostly 1, occasional 2, rare 3
-    u8 speed = 1;
+    u8 speed         = 1;
     if (((r >> 10) & 7u) == 0u) {
         speed = 3;
     } else if (((r >> 8) & 3u) == 0u) {
@@ -77,19 +78,22 @@ matrix_reset_column(MatrixColumns* columns, u16 x, u16 height, u32* rng_state) {
     columns->cadence[x] = (u8)(2 + ((r >> 24) % 3)); // step every 2-4 frames
 }
 
-void matrix_init(Matrix* matrix) {
-    matrix->columns    = (MatrixColumns){0};
+void matrix_init(Matrix* matrix)
+{
+    matrix->columns     = (MatrixColumns){0};
     matrix->last_fb_dim = (TermSize){0};
     matrix->rng_state   = (u32)time(NULL) | 1u;
     matrix->start_time  = time_now();
 }
 
-void matrix_render(Matrix* matrix, TermSize fb_size, TimePoint frame_start) {
+void matrix_render(Matrix* matrix, TermSize fb_size, TimePoint frame_start)
+{
     if (fb_size.width == 0 || fb_size.height == 0) {
         return;
     }
 
-    // Mix of digits, Latin letters, symbols, and Katakana reminiscent of the film
+    // Mix of digits, Latin letters, symbols, and Katakana reminiscent of the
+    // film
     static const u32 glyphs[] = {
         '0',    '1',    '2',    '3',    '4',    '5',    '6',    '7',    '8',
         '9',    'A',    'B',    'C',    'D',    'E',    'F',    'G',    'H',
@@ -102,12 +106,13 @@ void matrix_render(Matrix* matrix, TermSize fb_size, TimePoint frame_start) {
         0x30D8, 0x30DB, 0x30DE, 0x30DF, 0x30E0, 0x30E1, 0x30E2, 0x30E4, 0x30E6,
         0x30E8, 0x30E9, 0x30EA, 0x30EB, 0x30EC, 0x30ED, 0x30EF, 0x30F3};
     static const u32 glyphs_narrow[] = {
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C',
-        'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-        'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '@', '#', '$',
-        '%', '&', '+', '*', '=', '?'};
+        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B',
+        'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+        'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+        '@', '#', '$', '%', '&', '+', '*', '=', '?'};
     const usize glyph_count = sizeof(glyphs) / sizeof(glyphs[0]);
-    const usize glyph_narrow_count = sizeof(glyphs_narrow) / sizeof(glyphs_narrow[0]);
+    const usize glyph_narrow_count =
+        sizeof(glyphs_narrow) / sizeof(glyphs_narrow[0]);
 
     // Resize/reseed columns when the terminal changes
     if (fb_size.width != matrix->last_fb_dim.width ||
@@ -125,23 +130,24 @@ void matrix_render(Matrix* matrix, TermSize fb_size, TimePoint frame_start) {
         }
 
         for (u16 i = 0; i < fb_size.width; ++i) {
-            matrix_reset_column(&matrix->columns, i, fb_size.height, &matrix->rng_state);
+            matrix_reset_column(
+                &matrix->columns, i, fb_size.height, &matrix->rng_state);
         }
 
         matrix->last_fb_dim = fb_size;
     }
 
     TimeDuration elapsed = time_elapsed(matrix->start_time, frame_start);
-    u32 frame            = (u32)(time_secs(elapsed) * 60.0);
+    u32          frame   = (u32)(time_secs(elapsed) * 60.0);
 
-    u32 paper_bg    = term_rgb(0, 0, 0);
-    u32 ink_bg      = term_rgb(0, 40, 0);
-    TermRect screen = (TermRect){0, 0, fb_size.width, fb_size.height};
+    u32      paper_bg    = term_rgb(0, 0, 0);
+    u32      ink_bg      = term_rgb(0, 40, 0);
+    TermRect screen      = (TermRect){0, 0, fb_size.width, fb_size.height};
     term_fb_rect(screen, ' ', ink_bg, paper_bg);
 
     for (u16 x = 0; x < fb_size.width; ++x) {
-        i16 head      = matrix->columns.head[x];
-        u8 cadence    = matrix->columns.cadence[x];
+        i16  head     = matrix->columns.head[x];
+        u8   cadence  = matrix->columns.cadence[x];
         bool step_now = cadence == 0 ? false : (frame % cadence == 0);
         if (step_now) {
             head += matrix->columns.speed[x];
@@ -149,7 +155,8 @@ void matrix_render(Matrix* matrix, TermSize fb_size, TimePoint frame_start) {
         i16 tail = head - (i16)matrix->columns.length[x];
 
         if (tail > (i16)fb_size.height) {
-            matrix_reset_column(&matrix->columns, x, fb_size.height, &matrix->rng_state);
+            matrix_reset_column(
+                &matrix->columns, x, fb_size.height, &matrix->rng_state);
             continue;
         }
 
@@ -171,13 +178,12 @@ void matrix_render(Matrix* matrix, TermSize fb_size, TimePoint frame_start) {
                 g_base = 255; // bright head
             }
 
-            u8 g = (u8)g_base;
-            u8 r = (u8)(g / 6);
-            u8 b = (u8)(g / 10);
+            u8 g              = (u8)g_base;
+            u8 r              = (u8)(g / 6);
+            u8 b              = (u8)(g / 10);
 
-            usize glyph_index =
-                (usize)(x * 37 + y * 17 + frame) % glyph_count;
-            u32 glyph = glyphs[glyph_index];
+            usize glyph_index = (usize)(x * 37 + y * 17 + frame) % glyph_count;
+            u32   glyph       = glyphs[glyph_index];
             if (wcwidth(glyph) != 1) {
                 usize fallback_index =
                     (usize)(x * 11 + y * 23 + frame * 3) % glyph_narrow_count;
@@ -196,7 +202,8 @@ void matrix_render(Matrix* matrix, TermSize fb_size, TimePoint frame_start) {
     }
 }
 
-void matrix_shutdown(Matrix* matrix) {
+void matrix_shutdown(Matrix* matrix)
+{
     array_free(matrix->columns.head);
     array_free(matrix->columns.speed);
     array_free(matrix->columns.length);

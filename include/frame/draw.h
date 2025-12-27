@@ -40,7 +40,8 @@ void draw_filled_circle(GfxLayer* layer, int x, int y, int radius, u32 colour);
 // Pixel Buffer implementation
 //------------------------------------------------------------------------------
 
-static inline int draw_line_outcode(int x, int y, int max_x, int max_y) {
+static inline int draw_line_outcode(int x, int y, int max_x, int max_y)
+{
     int code = 0;
     if (x < 0) {
         code |= 1;
@@ -57,7 +58,8 @@ static inline int draw_line_outcode(int x, int y, int max_x, int max_y) {
     return code;
 }
 
-void draw_plot(GfxLayer* layer, int x, int y, u32 colour) {
+void draw_plot(GfxLayer* layer, int x, int y, u32 colour)
+{
     if (!layer) {
         return;
     }
@@ -70,7 +72,8 @@ void draw_plot(GfxLayer* layer, int x, int y, u32 colour) {
     pixels[y * width + x] = colour;
 }
 
-void draw_horz_line(GfxLayer* layer, int x, int y, int length, u32 colour) {
+void draw_horz_line(GfxLayer* layer, int x, int y, int length, u32 colour)
+{
     if (!layer) {
         return;
     }
@@ -80,11 +83,11 @@ void draw_horz_line(GfxLayer* layer, int x, int y, int length, u32 colour) {
         return;
     }
 
-    const int step  = (length > 0) ? 1 : -1;
-    int remaining   = (length > 0) ? length : -length;
-    int draw_x      = x;
-    const int max_x = width - 1;
-    u32* pixels     = gfx_layer_get_pixels(layer) + (y * width);
+    const int step      = (length > 0) ? 1 : -1;
+    int       remaining = (length > 0) ? length : -length;
+    int       draw_x    = x;
+    const int max_x     = width - 1;
+    u32*      pixels    = gfx_layer_get_pixels(layer) + (y * width);
     while (remaining--) {
         if (draw_x >= 0 && draw_x <= max_x) {
             pixels[draw_x] = colour;
@@ -93,7 +96,8 @@ void draw_horz_line(GfxLayer* layer, int x, int y, int length, u32 colour) {
     }
 }
 
-void draw_vert_line(GfxLayer* layer, int x, int y, int length, u32 colour) {
+void draw_vert_line(GfxLayer* layer, int x, int y, int length, u32 colour)
+{
     if (!layer) {
         return;
     }
@@ -103,11 +107,11 @@ void draw_vert_line(GfxLayer* layer, int x, int y, int length, u32 colour) {
         return;
     }
 
-    const int step  = (length > 0) ? 1 : -1;
-    int remaining   = (length > 0) ? length : -length;
-    int draw_y      = y;
-    const int max_y = height - 1;
-    u32* pixels     = gfx_layer_get_pixels(layer) + x;
+    const int step      = (length > 0) ? 1 : -1;
+    int       remaining = (length > 0) ? length : -length;
+    int       draw_y    = y;
+    const int max_y     = height - 1;
+    u32*      pixels    = gfx_layer_get_pixels(layer) + x;
     while (remaining--) {
         if (draw_y >= 0 && draw_y <= max_y) {
             pixels[draw_y * width] = colour;
@@ -116,7 +120,8 @@ void draw_vert_line(GfxLayer* layer, int x, int y, int length, u32 colour) {
     }
 }
 
-void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour) {
+void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour)
+{
 
     if (!layer) {
         return;
@@ -158,8 +163,8 @@ void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour) {
         }
 
         const int outcode = out0 ? out0 : out1;
-        int clip_x;
-        int clip_y;
+        int       clip_x;
+        int       clip_y;
 
         if (outcode & 8) {
             clip_x = x0 + (x1 - x0) * (max_y - y0) / (y1 - y0);
@@ -186,14 +191,14 @@ void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour) {
         }
     }
 
-    int dx      = (x1 > x0) ? (x1 - x0) : (x0 - x1);
-    int sx      = (x0 < x1) ? 1 : -1;
-    int dy      = (y1 > y0) ? -(y1 - y0) : -(y0 - y1);
-    int sy      = (y0 < y1) ? 1 : -1;
-    int err     = dx + dy;
+    int dx           = (x1 > x0) ? (x1 - x0) : (x0 - x1);
+    int sx           = (x0 < x1) ? 1 : -1;
+    int dy           = (y1 > y0) ? -(y1 - y0) : -(y0 - y1);
+    int sy           = (y0 < y1) ? 1 : -1;
+    int err          = dx + dy;
 
-    u32* pixels = gfx_layer_get_pixels(layer);
-    const int w = width;
+    u32*      pixels = gfx_layer_get_pixels(layer);
+    const int w      = width;
 
     for (;;) {
         pixels[y0 * w + x0] = colour; // inclusive endpoint
@@ -214,8 +219,8 @@ void draw_line(GfxLayer* layer, int x0, int y0, int x1, int y1, u32 colour) {
     }
 }
 
-void draw_rect(
-    GfxLayer* layer, int x, int y, int width, int height, u32 colour) {
+void draw_rect(GfxLayer* layer, int x, int y, int width, int height, u32 colour)
+{
     if (!layer || width == 0 || height == 0) {
         return;
     }
@@ -243,7 +248,8 @@ void draw_rect(
 }
 
 void draw_filled_rect(
-    GfxLayer* layer, int x, int y, int width, int height, u32 colour) {
+    GfxLayer* layer, int x, int y, int width, int height, u32 colour)
+{
 
     const int w = gfx_layer_get_width(layer);
     const int h = gfx_layer_get_height(layer);
@@ -278,7 +284,8 @@ void draw_filled_rect(
     }
 }
 
-void draw_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
+void draw_circle(GfxLayer* layer, int x, int y, int radius, u32 colour)
+{
     if (!layer || radius < 0) {
         return;
     }
@@ -360,7 +367,8 @@ void draw_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
     }
 }
 
-void draw_filled_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
+void draw_filled_circle(GfxLayer* layer, int x, int y, int radius, u32 colour)
+{
     if (!layer || radius < 0) {
         return;
     }
@@ -392,13 +400,13 @@ void draw_filled_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
         int left  = x - dx;
         int right = x + dx;
 
-        int row = y + dy;
+        int row   = y + dy;
         if (row >= 0 && row <= max_y) {
             int lx = (left < 0) ? 0 : left;
             int rx = (right > max_x) ? max_x : right;
             if (lx <= rx) {
                 u32* p   = pixels + row * w + lx;
-                int cnt  = rx - lx + 1;
+                int  cnt = rx - lx + 1;
                 while (cnt--) {
                     *p++ = colour;
                 }
@@ -411,7 +419,7 @@ void draw_filled_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
                 int rx = (right > max_x) ? max_x : right;
                 if (lx <= rx) {
                     u32* p   = pixels + row * w + lx;
-                    int cnt  = rx - lx + 1;
+                    int  cnt = rx - lx + 1;
                     while (cnt--) {
                         *p++ = colour;
                     }
@@ -423,13 +431,13 @@ void draw_filled_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
             left  = x - dy;
             right = x + dy;
 
-            row = y + dx;
+            row   = y + dx;
             if (row >= 0 && row <= max_y) {
                 int lx = (left < 0) ? 0 : left;
                 int rx = (right > max_x) ? max_x : right;
                 if (lx <= rx) {
                     u32* p   = pixels + row * w + lx;
-                    int cnt  = rx - lx + 1;
+                    int  cnt = rx - lx + 1;
                     while (cnt--) {
                         *p++ = colour;
                     }
@@ -441,7 +449,7 @@ void draw_filled_circle(GfxLayer* layer, int x, int y, int radius, u32 colour) {
                 int rx = (right > max_x) ? max_x : right;
                 if (lx <= rx) {
                     u32* p   = pixels + row * w + lx;
-                    int cnt  = rx - lx + 1;
+                    int  cnt = rx - lx + 1;
                     while (cnt--) {
                         *p++ = colour;
                     }

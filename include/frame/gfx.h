@@ -30,7 +30,7 @@ void gfx_shutdown(void);
 // Create a layer. Optional initial pixel data (can be NULL).
 GfxLayer* gfx_layer_create(int width, int height, const u32* rgba_pixels);
 // Destroy a layer (safe to pass NULL).
-void gfx_layer_destroy(GfxLayer* layer);
+void      gfx_layer_destroy(GfxLayer* layer);
 
 // Enable/disable layer (default enabled). Disabled layers are skipped.
 void gfx_layer_set_enabled(GfxLayer* layer, bool enabled);
@@ -42,22 +42,22 @@ void gfx_layer_update_pixels(GfxLayer* layer, const u32* rgba_pixels);
 
 // (Optional) Resize layer and replace pixels. Pass new pixel data sized
 // new_w*new_h. Returns true on success.
-bool gfx_layer_resize(GfxLayer* layer,
-                      int new_w,
-                      int new_h,
+bool gfx_layer_resize(GfxLayer*  layer,
+                      int        new_w,
+                      int        new_h,
                       const u32* rgba_pixels);
 
 // Accessors
-int gfx_layer_get_width(const GfxLayer* layer);
-int gfx_layer_get_height(const GfxLayer* layer);
+int  gfx_layer_get_width(const GfxLayer* layer);
+int  gfx_layer_get_height(const GfxLayer* layer);
 u32* gfx_layer_get_pixels(GfxLayer* layer);
 
 // Render ordered list of layers (front-most last) to current framebuffer of
 // given window size.
 void gfx_render(GfxLayer** layers,
-                int layer_count,
-                int window_width,
-                int window_height);
+                int        layer_count,
+                int        window_width,
+                int        window_height);
 
 //------------------------------------------------------------------------------
 
@@ -105,36 +105,36 @@ void gfx_render(GfxLayer** layers,
 // ---------- Internal Structures ----------
 
 struct GfxLayer {
-    int w, h;
+    int    w, h;
     GLuint tex;
-    bool enabled;
+    bool   enabled;
     GLuint pbo;
-    u32* pixels; // CPU-side pixel buffer (returned to caller)
+    u32*   pixels; // CPU-side pixel buffer (returned to caller)
 };
 
 // Single shared shader & geometry
-static GLuint g_program = 0;
-static GLint g_attr_pos = -1;
-static GLint g_attr_uv  = -1;
-static GLint g_unif_tex = -1;
-static GLuint g_vao     = 0;
-static GLuint g_vbo     = 0;
-static bool g_inited    = false;
+static GLuint g_program  = 0;
+static GLint  g_attr_pos = -1;
+static GLint  g_attr_uv  = -1;
+static GLint  g_unif_tex = -1;
+static GLuint g_vao      = 0;
+static GLuint g_vbo      = 0;
+static bool   g_inited   = false;
 
 #    if KORE_OS_WINDOWS
 // WGL context we may create (only if none exists on init)
-static HWND g_hwnd         = NULL;
-static HDC g_hdc           = NULL;
-static HGLRC g_hglrc       = NULL;
-static bool g_owns_context = false;
-static HMODULE g_gl_lib    = NULL;
+static HWND    g_hwnd         = NULL;
+static HDC     g_hdc          = NULL;
+static HGLRC   g_hglrc        = NULL;
+static bool    g_owns_context = false;
+static HMODULE g_gl_lib       = NULL;
 #    endif // KORE_OS_WINDOWS
 
 #    if KORE_OS_WINDOWS || KORE_OS_LINUX
 // Function pointer declarations for required modern GL (>=2.0) functions
 // (Core 1.1 functions are provided by opengl32.dll directly.)
 #        if KORE_OS_WINDOWS
-typedef char GLchar;
+typedef char      GLchar;
 typedef ptrdiff_t GLsizeiptr;
 typedef ptrdiff_t GLintptr;
 typedef GLuint(APIENTRYP PFNGLCREATESHADERPROC)(GLenum);
@@ -184,34 +184,34 @@ typedef void(APIENTRYP PFNGLDELETEVERTEXARRAYSPROC)(GLsizei, const GLuint*);
 #        endif
 
 // Pointers
-static PFNGLCREATESHADERPROC p_glCreateShader                       = NULL;
-static PFNGLSHADERSOURCEPROC p_glShaderSource                       = NULL;
-static PFNGLCOMPILESHADERPROC p_glCompileShader                     = NULL;
-static PFNGLGETSHADERIVPROC p_glGetShaderiv                         = NULL;
-static PFNGLGETSHADERINFOLOGPROC p_glGetShaderInfoLog               = NULL;
-static PFNGLDELETESHADERPROC p_glDeleteShader                       = NULL;
-static PFNGLCREATEPROGRAMPROC p_glCreateProgram                     = NULL;
-static PFNGLATTACHSHADERPROC p_glAttachShader                       = NULL;
-static PFNGLLINKPROGRAMPROC p_glLinkProgram                         = NULL;
-static PFNGLGETPROGRAMIVPROC p_glGetProgramiv                       = NULL;
-static PFNGLDELETEPROGRAMPROC p_glDeleteProgram                     = NULL;
-static PFNGLGETUNIFORMLOCATIONPROC p_glGetUniformLocation           = NULL;
-static PFNGLUNIFORM1IPROC p_glUniform1i                             = NULL;
-static PFNGLGETATTRIBLOCATIONPROC p_glGetAttribLocation             = NULL;
+static PFNGLCREATESHADERPROC            p_glCreateShader            = NULL;
+static PFNGLSHADERSOURCEPROC            p_glShaderSource            = NULL;
+static PFNGLCOMPILESHADERPROC           p_glCompileShader           = NULL;
+static PFNGLGETSHADERIVPROC             p_glGetShaderiv             = NULL;
+static PFNGLGETSHADERINFOLOGPROC        p_glGetShaderInfoLog        = NULL;
+static PFNGLDELETESHADERPROC            p_glDeleteShader            = NULL;
+static PFNGLCREATEPROGRAMPROC           p_glCreateProgram           = NULL;
+static PFNGLATTACHSHADERPROC            p_glAttachShader            = NULL;
+static PFNGLLINKPROGRAMPROC             p_glLinkProgram             = NULL;
+static PFNGLGETPROGRAMIVPROC            p_glGetProgramiv            = NULL;
+static PFNGLDELETEPROGRAMPROC           p_glDeleteProgram           = NULL;
+static PFNGLGETUNIFORMLOCATIONPROC      p_glGetUniformLocation      = NULL;
+static PFNGLUNIFORM1IPROC               p_glUniform1i               = NULL;
+static PFNGLGETATTRIBLOCATIONPROC       p_glGetAttribLocation       = NULL;
 static PFNGLENABLEVERTEXATTRIBARRAYPROC p_glEnableVertexAttribArray = NULL;
-static PFNGLVERTEXATTRIBPOINTERPROC p_glVertexAttribPointer         = NULL;
-static PFNGLUSEPROGRAMPROC p_glUseProgram                           = NULL;
-static PFNGLGENBUFFERSPROC p_glGenBuffers                           = NULL;
-static PFNGLBINDBUFFERPROC p_glBindBuffer                           = NULL;
-static PFNGLBUFFERDATAPROC p_glBufferData                           = NULL;
-static PFNGLBUFFERSUBDATAPROC p_glBufferSubData                     = NULL;
-static PFNGLDELETEBUFFERSPROC p_glDeleteBuffers                     = NULL;
-static PFNGLGENVERTEXARRAYSPROC p_glGenVertexArrays                 = NULL;
-static PFNGLBINDVERTEXARRAYPROC p_glBindVertexArray                 = NULL;
-static PFNGLDELETEVERTEXARRAYSPROC p_glDeleteVertexArrays           = NULL;
-static PFNGLMAPBUFFERRANGEPROC p_glMapBufferRange                   = NULL;
-static PFNGLMAPBUFFERPROC p_glMapBuffer                             = NULL;
-static PFNGLUNMAPBUFFERPROC p_glUnmapBuffer                         = NULL;
+static PFNGLVERTEXATTRIBPOINTERPROC     p_glVertexAttribPointer     = NULL;
+static PFNGLUSEPROGRAMPROC              p_glUseProgram              = NULL;
+static PFNGLGENBUFFERSPROC              p_glGenBuffers              = NULL;
+static PFNGLBINDBUFFERPROC              p_glBindBuffer              = NULL;
+static PFNGLBUFFERDATAPROC              p_glBufferData              = NULL;
+static PFNGLBUFFERSUBDATAPROC           p_glBufferSubData           = NULL;
+static PFNGLDELETEBUFFERSPROC           p_glDeleteBuffers           = NULL;
+static PFNGLGENVERTEXARRAYSPROC         p_glGenVertexArrays         = NULL;
+static PFNGLBINDVERTEXARRAYPROC         p_glBindVertexArray         = NULL;
+static PFNGLDELETEVERTEXARRAYSPROC      p_glDeleteVertexArrays      = NULL;
+static PFNGLMAPBUFFERRANGEPROC          p_glMapBufferRange          = NULL;
+static PFNGLMAPBUFFERPROC               p_glMapBuffer               = NULL;
+static PFNGLUNMAPBUFFERPROC             p_glUnmapBuffer             = NULL;
 
 // Macro to redirect calls in rest of file to loaded pointers
 #        define glCreateShader p_glCreateShader
@@ -287,7 +287,8 @@ static PFNGLUNMAPBUFFERPROC p_glUnmapBuffer                         = NULL;
 #        endif
 
 #        if KORE_OS_WINDOWS
-static void* gfx_get_proc(const char* name) {
+static void* gfx_get_proc(const char* name)
+{
     void* p = (void*)wglGetProcAddress(name);
     if (!p && g_gl_lib) {
         p = (void*)GetProcAddress(g_gl_lib, name);
@@ -295,12 +296,14 @@ static void* gfx_get_proc(const char* name) {
     return p;
 }
 #        else
-static void* gfx_get_proc(const char* name) {
+static void* gfx_get_proc(const char* name)
+{
     return (void*)glXGetProcAddress((const GLubyte*)name);
 }
 #        endif
 
-static bool gfx_load_gl_functions(void) {
+static bool gfx_load_gl_functions(void)
+{
     // Load only what we actually use
 #        define LOAD_GL(fn)                                                    \
             do {                                                               \
@@ -337,14 +340,15 @@ static bool gfx_load_gl_functions(void) {
     p_glBindVertexArray    = gfx_get_proc("glBindVertexArray");
     p_glDeleteVertexArrays = gfx_get_proc("glDeleteVertexArrays");
     // MapBufferRange is optional (GL 3.0 / ARB_map_buffer_range)
-    p_glMapBufferRange = gfx_get_proc("glMapBufferRange");
+    p_glMapBufferRange     = gfx_get_proc("glMapBufferRange");
 #        undef LOAD_GL
     return true;
 }
 #    endif // KORE_OS_WINDOWS || KORE_OS_LINUX
 
 #    if KORE_OS_WINDOWS
-static bool gfx_create_dummy_context(void) {
+static bool gfx_create_dummy_context(void)
+{
     if (wglGetCurrentContext()) {
         return true; // Already have context; do not own it
     }
@@ -436,7 +440,8 @@ static bool gfx_create_dummy_context(void) {
     return true;
 }
 
-static void gfx_destroy_dummy_context(void) {
+static void gfx_destroy_dummy_context(void)
+{
     if (!g_owns_context) {
         return;
     }
@@ -463,7 +468,8 @@ static void gfx_destroy_dummy_context(void) {
 
 // ---------- Minimal Shader Setup ----------
 
-static GLuint compile_shader(GLenum type, const char* src) {
+static GLuint compile_shader(GLenum type, const char* src)
+{
     GLuint sh = glCreateShader(type);
     glShaderSource(sh, 1, &src, NULL);
     glCompileShader(sh);
@@ -471,7 +477,7 @@ static GLuint compile_shader(GLenum type, const char* src) {
     glGetShaderiv(sh, GL_COMPILE_STATUS, &ok);
     if (!ok) {
 #    ifdef KORE_DEBUG
-        char log[1024];
+        char    log[1024];
         GLsizei len = 0;
         glGetShaderInfoLog(sh, (GLsizei)sizeof(log), &len, log);
 #    endif // KORE_DEBUG
@@ -481,7 +487,8 @@ static GLuint compile_shader(GLenum type, const char* src) {
     return sh;
 }
 
-static GLuint create_program(void) {
+static GLuint create_program(void)
+{
     const char* vs_src =
         "#version 120\n"
         "attribute vec2 aPos;"
@@ -522,7 +529,8 @@ static GLuint create_program(void) {
 
 // ---------- Public API ----------
 
-bool gfx_init(void) {
+bool gfx_init(void)
+{
     if (g_inited) {
         return true;
     }
@@ -593,7 +601,8 @@ bool gfx_init(void) {
     return true;
 }
 
-void gfx_shutdown(void) {
+void gfx_shutdown(void)
+{
     if (!g_inited) {
         // Even if not inited, destroy dummy context if we own it (Windows)
 #    if KORE_OS_WINDOWS
@@ -627,7 +636,8 @@ void gfx_shutdown(void) {
     g_inited = false;
 }
 
-static GLuint create_texture(int w, int h) {
+static GLuint create_texture(int w, int h)
+{
     GLuint tex;
     glGenTextures(1, &tex);
     glBindTexture(GL_TEXTURE_2D, tex);
@@ -642,15 +652,18 @@ static GLuint create_texture(int w, int h) {
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
 #    endif
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexImage2D(
+        GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
     return tex;
 }
 
-static bool gfx_layer_init_pbo(GfxLayer* L, const u32* pixels) {
+static bool gfx_layer_init_pbo(GfxLayer* L, const u32* pixels)
+{
     size_t size = (size_t)L->w * (size_t)L->h * sizeof(u32);
     glGenBuffers(1, &L->pbo);
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, L->pbo);
-    glBufferData(GL_PIXEL_UNPACK_BUFFER, (GLsizeiptr)size, NULL, GL_STREAM_DRAW);
+    glBufferData(
+        GL_PIXEL_UNPACK_BUFFER, (GLsizeiptr)size, NULL, GL_STREAM_DRAW);
 
     L->pixels = KORE_ARRAY_ALLOC(u32, L->w * L->h);
     if (!L->pixels) {
@@ -667,21 +680,15 @@ static bool gfx_layer_init_pbo(GfxLayer* L, const u32* pixels) {
 
     glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, (GLsizeiptr)size, L->pixels);
     glBindTexture(GL_TEXTURE_2D, L->tex);
-    glTexSubImage2D(GL_TEXTURE_2D,
-                    0,
-                    0,
-                    0,
-                    L->w,
-                    L->h,
-                    GL_RGBA,
-                    GL_UNSIGNED_BYTE,
-                    0);
+    glTexSubImage2D(
+        GL_TEXTURE_2D, 0, 0, 0, L->w, L->h, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     return true;
 }
 
-GfxLayer* gfx_layer_create(int width, int height, const u32* rgba_pixels) {
+GfxLayer* gfx_layer_create(int width, int height, const u32* rgba_pixels)
+{
     if (width <= 0 || height <= 0) {
         return NULL;
     }
@@ -708,7 +715,8 @@ GfxLayer* gfx_layer_create(int width, int height, const u32* rgba_pixels) {
     return L;
 }
 
-void gfx_layer_destroy(GfxLayer* layer) {
+void gfx_layer_destroy(GfxLayer* layer)
+{
     if (!layer) {
         return;
     }
@@ -724,17 +732,20 @@ void gfx_layer_destroy(GfxLayer* layer) {
     KORE_FREE(layer);
 }
 
-void gfx_layer_set_enabled(GfxLayer* layer, bool enabled) {
+void gfx_layer_set_enabled(GfxLayer* layer, bool enabled)
+{
     if (layer) {
         layer->enabled = enabled;
     }
 }
 
-bool gfx_layer_is_enabled(const GfxLayer* layer) {
+bool gfx_layer_is_enabled(const GfxLayer* layer)
+{
     return layer ? layer->enabled : false;
 }
 
-void gfx_layer_update_pixels(GfxLayer* layer, const u32* rgba_pixels) {
+void gfx_layer_update_pixels(GfxLayer* layer, const u32* rgba_pixels)
+{
     if (!layer || !rgba_pixels) {
         return;
     }
@@ -742,16 +753,17 @@ void gfx_layer_update_pixels(GfxLayer* layer, const u32* rgba_pixels) {
     memcpy(layer->pixels, rgba_pixels, size);
 }
 
-bool gfx_layer_resize(GfxLayer* layer,
-                      int new_w,
-                      int new_h,
-                      const u32* rgba_pixels) {
+bool gfx_layer_resize(GfxLayer*  layer,
+                      int        new_w,
+                      int        new_h,
+                      const u32* rgba_pixels)
+{
     if (!layer || new_w <= 0 || new_h <= 0) {
         return false;
     }
     if (layer->pbo) {
         glDeleteBuffers(1, &layer->pbo);
-        layer->pbo    = 0;
+        layer->pbo = 0;
     }
     if (layer->pixels) {
         KORE_ARRAY_FREE(layer->pixels);
@@ -776,16 +788,18 @@ bool gfx_layer_resize(GfxLayer* layer,
 
 int gfx_layer_get_width(const GfxLayer* layer) { return layer ? layer->w : 0; }
 int gfx_layer_get_height(const GfxLayer* layer) { return layer ? layer->h : 0; }
-u32* gfx_layer_get_pixels(GfxLayer* layer) {
+u32* gfx_layer_get_pixels(GfxLayer* layer)
+{
     return layer ? layer->pixels : NULL;
 }
 
 // ---------- Rendering ----------
 
 void gfx_render(GfxLayer** layers,
-                int layer_count,
-                int window_width,
-                int window_height) {
+                int        layer_count,
+                int        window_width,
+                int        window_height)
+{
     if (!g_inited || window_width <= 0 || window_height <= 0) {
         return;
     }
@@ -817,19 +831,12 @@ void gfx_render(GfxLayer** layers,
         glBindTexture(GL_TEXTURE_2D, L->tex);
         glBindBuffer(GL_PIXEL_UNPACK_BUFFER, L->pbo);
         glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, (GLsizeiptr)size, L->pixels);
-        glTexSubImage2D(GL_TEXTURE_2D,
-                        0,
-                        0,
-                        0,
-                        L->w,
-                        L->h,
-                        GL_RGBA,
-                        GL_UNSIGNED_BYTE,
-                        0);
+        glTexSubImage2D(
+            GL_TEXTURE_2D, 0, 0, 0, L->w, L->h, GL_RGBA, GL_UNSIGNED_BYTE, 0);
 
-        float scale_w   = (float)window_width / (float)L->w;
-        float scale_h   = (float)window_height / (float)L->h;
-        float scale     = scale_w < scale_h ? scale_w : scale_h;
+        float scale_w = (float)window_width / (float)L->w;
+        float scale_h = (float)window_height / (float)L->h;
+        float scale   = scale_w < scale_h ? scale_w : scale_h;
         if (scale >= 1.0f) {
             scale = floorf(scale); // integer upscaling for pixel-perfect
         }

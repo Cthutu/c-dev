@@ -327,12 +327,12 @@ typedef struct {
     union {
         struct {
             FrameKeyShift shift;
-            FrameKey keycode;
-            u32 character;
+            FrameKey      keycode;
+            u32           character;
         } key;
         struct {
-            int x;
-            int y;
+            int         x;
+            int         y;
             MouseButton button;
         } mouse;
         f64 delta_time; // Available during FRAME_EVENT_NONE
@@ -342,31 +342,31 @@ typedef struct {
 typedef struct {
     // Frame parameters
     cstr title;              // Title of window
-    int width;               // Width of inner part in pixels
-    int height;              // Height of inner part in pixels
+    int  width;              // Width of inner part in pixels
+    int  height;             // Height of inner part in pixels
     Array(GfxLayer*) layers; // Graphics layers that are rendered in window
     bool done;               // True if frame is to be closed
     bool resizable; // True if you are allowed to resize the window (fullscreen
                     // always works)
 
     // FPS Tracking
-    TimePoint last_time; // Last frame time point
-    u64 frame_count;     // Total frames since open
-    f64 fps;             // Most recent calculation of FPS
+    TimePoint last_time;   // Last frame time point
+    u64       frame_count; // Total frames since open
+    f64       fps;         // Most recent calculation of FPS
 
     // Event queue
     Array(FrameEvent) events; // Event queue
 
 // OS Windows references
 #if KORE_OS_WINDOWS
-    HWND hwnd;
-    HDC hdc;
+    HWND  hwnd;
+    HDC   hdc;
     HGLRC hglrc;
 #elif KORE_OS_LINUX
     GLXContext glx_ctx;
-    Display* display;
-    Window window;
-    Colormap colormap;
+    Display*   display;
+    Window     window;
+    Colormap   colormap;
 #else
 #    error "Unsupported OS"
 #endif
@@ -378,17 +378,17 @@ typedef struct {
 // Frame API
 //
 
-Frame frame_open(int width, int height, bool resizable, cstr title);
-bool frame_loop(Frame* f);
-void frame_done(Frame* f);
+Frame     frame_open(int width, int height, bool resizable, cstr title);
+bool      frame_loop(Frame* f);
+void      frame_done(Frame* f);
 GfxLayer* frame_add_pixels_layer(Frame* f, int width, int height);
-f64 frame_fps(Frame* f);
-bool frame_map_coords_to_layer(Frame* f,
-                               const GfxLayer* layer,
-                               int window_x,
-                               int window_y,
-                               int* out_layer_x,
-                               int* out_layer_y);
+f64       frame_fps(Frame* f);
+bool      frame_map_coords_to_layer(Frame*          f,
+                                    const GfxLayer* layer,
+                                    int             window_x,
+                                    int             window_y,
+                                    int*            out_layer_x,
+                                    int*            out_layer_y);
 
 void frame_fullscreen(Frame* f, bool enable);
 
@@ -396,8 +396,8 @@ void frame_fullscreen(Frame* f, bool enable);
 // Event management
 //
 
-void frame_event_enqueue(Frame* f, FrameEvent event);
-void frame_event_clear(Frame* f);
+void       frame_event_enqueue(Frame* f, FrameEvent event);
+void       frame_event_clear(Frame* f);
 FrameEvent frame_event_poll(Frame* f);
 
 bool frame_event_is_shift_pressed(const FrameEvent* ev);
@@ -420,14 +420,15 @@ void frame_free_pixels_layer(GfxLayer* layer);
 //------------------------------------------------------------------------------
 // Common helpers
 
-internal inline void frame_update_timing(Frame* f) {
+internal inline void frame_update_timing(Frame* f)
+{
     if (!f) {
         return;
     }
     f->frame_count++;
-    TimePoint now   = time_now();
-    TimeDuration dt = time_elapsed(f->last_time, now);
-    f64 secs        = time_secs(dt);
+    TimePoint    now  = time_now();
+    TimeDuration dt   = time_elapsed(f->last_time, now);
+    f64          secs = time_secs(dt);
     if (secs > 0.0) {
         f->fps = 1.0 / secs;
     }
@@ -441,7 +442,8 @@ internal inline void frame_update_timing(Frame* f) {
 
 global_variable Atom g_wm_delete_window = None;
 
-internal inline void frame_apply_linux_size_hints(Frame* f, bool fixed) {
+internal inline void frame_apply_linux_size_hints(Frame* f, bool fixed)
+{
     if (!f || !f->display || !f->window) {
         return;
     }
@@ -459,7 +461,8 @@ internal inline void frame_apply_linux_size_hints(Frame* f, bool fixed) {
     XSetWMNormalHints(f->display, f->window, &hints);
 }
 
-internal inline FrameKey frame_x11_keysym_to_key(KeySym sym) {
+internal inline FrameKey frame_x11_keysym_to_key(KeySym sym)
+{
     if (sym >= XK_a && sym <= XK_z) {
         return (FrameKey)(KEY_A + (sym - XK_a));
     }
@@ -588,7 +591,8 @@ internal inline FrameKey frame_x11_keysym_to_key(KeySym sym) {
 }
 
 internal inline FrameKeyShift frame_x11_modifiers(unsigned int state,
-                                                  KeySym sym) {
+                                                  KeySym       sym)
+{
     FrameKeyShift mods = 0;
     if (state & ShiftMask) {
         mods |= KEY_SHIFT_LEFT;
@@ -626,7 +630,8 @@ internal inline FrameKeyShift frame_x11_modifiers(unsigned int state,
     return mods;
 }
 
-internal void frame_cleanup(Frame* f) {
+internal void frame_cleanup(Frame* f)
+{
     if (!f) {
         return;
     }
@@ -658,7 +663,8 @@ internal void frame_cleanup(Frame* f) {
     }
 }
 
-Frame frame_open(int width, int height, bool resizable, cstr title) {
+Frame frame_open(int width, int height, bool resizable, cstr title)
+{
     Frame f = {
         .title       = title,
         .width       = width,
@@ -825,7 +831,8 @@ Frame frame_open(int width, int height, bool resizable, cstr title) {
     return f;
 }
 
-bool frame_loop(Frame* f) {
+bool frame_loop(Frame* f)
+{
     if (!f || f->done) {
         if (f) {
             frame_cleanup(f);
@@ -835,7 +842,7 @@ bool frame_loop(Frame* f) {
     }
 
     XEvent event;
-    bool running = true;
+    bool   running = true;
 
     while (XPending(f->display)) {
         XNextEvent(f->display, &event);
@@ -854,82 +861,94 @@ bool frame_loop(Frame* f) {
             running = false;
             break;
 
-        case ConfigureNotify: {
-            if (event.xconfigure.width != f->width ||
-                event.xconfigure.height != f->height) {
-                f->width      = event.xconfigure.width;
-                f->height     = event.xconfigure.height;
-                FrameEvent ev = {.type = FRAME_EVENT_RESIZE};
-                frame_event_enqueue(f, ev);
-            }
-        } break;
-
-        case FocusIn: {
-            FrameEvent ev = {.type = FRAME_EVENT_RESUME};
-            frame_event_enqueue(f, ev);
-        } break;
-
-        case FocusOut: {
-            FrameEvent ev = {.type = FRAME_EVENT_SUSPEND};
-            frame_event_enqueue(f, ev);
-        } break;
-
-        case KeyPress:
-        case KeyRelease: {
-            FrameEvent ev  = {.type = (event.type == KeyPress)
-                                          ? FRAME_EVENT_KEY_DOWN
-                                          : FRAME_EVENT_KEY_UP};
-            KeySym sym     = XLookupKeysym(&event.xkey, 0);
-            ev.key.keycode = frame_x11_keysym_to_key(sym);
-            ev.key.shift   = frame_x11_modifiers(event.xkey.state, sym);
-            ev.key.character =
-                0; // Default to no character unless resolved below
-
-            if (ev.type == FRAME_EVENT_KEY_DOWN) {
-                char buf[8];
-                int len = XLookupString(
-                    &event.xkey, buf, (int)sizeof(buf), NULL, NULL);
-                if (len > 0) {
-                    ev.key.character = (u8)buf[0];
+        case ConfigureNotify:
+            {
+                if (event.xconfigure.width != f->width ||
+                    event.xconfigure.height != f->height) {
+                    f->width      = event.xconfigure.width;
+                    f->height     = event.xconfigure.height;
+                    FrameEvent ev = {.type = FRAME_EVENT_RESIZE};
+                    frame_event_enqueue(f, ev);
                 }
             }
+            break;
 
-            frame_event_enqueue(f, ev);
-        } break;
+        case FocusIn:
+            {
+                FrameEvent ev = {.type = FRAME_EVENT_RESUME};
+                frame_event_enqueue(f, ev);
+            }
+            break;
+
+        case FocusOut:
+            {
+                FrameEvent ev = {.type = FRAME_EVENT_SUSPEND};
+                frame_event_enqueue(f, ev);
+            }
+            break;
+
+        case KeyPress:
+        case KeyRelease:
+            {
+                FrameEvent ev  = {.type = (event.type == KeyPress)
+                                              ? FRAME_EVENT_KEY_DOWN
+                                              : FRAME_EVENT_KEY_UP};
+                KeySym     sym = XLookupKeysym(&event.xkey, 0);
+                ev.key.keycode = frame_x11_keysym_to_key(sym);
+                ev.key.shift   = frame_x11_modifiers(event.xkey.state, sym);
+                ev.key.character =
+                    0; // Default to no character unless resolved below
+
+                if (ev.type == FRAME_EVENT_KEY_DOWN) {
+                    char buf[8];
+                    int  len = XLookupString(
+                        &event.xkey, buf, (int)sizeof(buf), NULL, NULL);
+                    if (len > 0) {
+                        ev.key.character = (u8)buf[0];
+                    }
+                }
+
+                frame_event_enqueue(f, ev);
+            }
+            break;
 
         case ButtonPress:
-        case ButtonRelease: {
-            FrameEvent ev   = {.type = (event.type == ButtonPress)
-                                           ? FRAME_EVENT_MOUSE_BUTTON_DOWN
-                                           : FRAME_EVENT_MOUSE_BUTTON_UP};
-            ev.mouse.x      = event.xbutton.x;
-            ev.mouse.y      = event.xbutton.y;
-            ev.mouse.button = 0;
+        case ButtonRelease:
+            {
+                FrameEvent ev   = {.type = (event.type == ButtonPress)
+                                               ? FRAME_EVENT_MOUSE_BUTTON_DOWN
+                                               : FRAME_EVENT_MOUSE_BUTTON_UP};
+                ev.mouse.x      = event.xbutton.x;
+                ev.mouse.y      = event.xbutton.y;
+                ev.mouse.button = 0;
 
-            switch (event.xbutton.button) {
-            case Button1:
-                ev.mouse.button = MOUSE_BUTTON_LEFT;
-                break;
-            case Button2:
-                ev.mouse.button = MOUSE_BUTTON_MIDDLE;
-                break;
-            case Button3:
-                ev.mouse.button = MOUSE_BUTTON_RIGHT;
-                break;
-            default:
-                break;
+                switch (event.xbutton.button) {
+                case Button1:
+                    ev.mouse.button = MOUSE_BUTTON_LEFT;
+                    break;
+                case Button2:
+                    ev.mouse.button = MOUSE_BUTTON_MIDDLE;
+                    break;
+                case Button3:
+                    ev.mouse.button = MOUSE_BUTTON_RIGHT;
+                    break;
+                default:
+                    break;
+                }
+
+                frame_event_enqueue(f, ev);
             }
+            break;
 
-            frame_event_enqueue(f, ev);
-        } break;
-
-        case MotionNotify: {
-            FrameEvent ev   = {.type = FRAME_EVENT_MOUSE_MOVE};
-            ev.mouse.x      = event.xmotion.x;
-            ev.mouse.y      = event.xmotion.y;
-            ev.mouse.button = 0;
-            frame_event_enqueue(f, ev);
-        } break;
+        case MotionNotify:
+            {
+                FrameEvent ev   = {.type = FRAME_EVENT_MOUSE_MOVE};
+                ev.mouse.x      = event.xmotion.x;
+                ev.mouse.y      = event.xmotion.y;
+                ev.mouse.button = 0;
+                frame_event_enqueue(f, ev);
+            }
+            break;
 
         default:
             break;
@@ -954,7 +973,8 @@ bool frame_loop(Frame* f) {
     return true;
 }
 
-void frame_fullscreen(Frame* f, bool enable) {
+void frame_fullscreen(Frame* f, bool enable)
+{
     if (!f || !f->display || !f->window) {
         return;
     }
@@ -996,7 +1016,8 @@ void frame_fullscreen(Frame* f, bool enable) {
 
 #    elif KORE_OS_WINDOWS
 
-static void frame_cleanup(Frame* f) {
+static void frame_cleanup(Frame* f)
+{
     // Destroy layers
     for (u64 i = 0; i < array_count(f->layers); ++i) {
         gfx_layer_destroy(f->layers[i]);
@@ -1019,7 +1040,8 @@ static void frame_cleanup(Frame* f) {
     }
 }
 
-internal inline FrameKey frame_win32_vk_to_key(WPARAM vk) {
+internal inline FrameKey frame_win32_vk_to_key(WPARAM vk)
+{
     if (vk >= 'A' && vk <= 'Z') {
         return (FrameKey)(KEY_A + (vk - 'A'));
     }
@@ -1135,7 +1157,8 @@ internal inline FrameKey frame_win32_vk_to_key(WPARAM vk) {
     }
 }
 
-internal inline FrameKeyShift frame_win32_modifiers(void) {
+internal inline FrameKeyShift frame_win32_modifiers(void)
+{
     FrameKeyShift mods = 0;
     if (GetKeyState(VK_LSHIFT) & 0x8000) {
         mods |= KEY_SHIFT_LEFT;
@@ -1158,17 +1181,20 @@ internal inline FrameKeyShift frame_win32_modifiers(void) {
     return mods;
 }
 
-static LRESULT CALLBACK WindowProc(HWND hwnd,
-                                   UINT msg,
+static LRESULT CALLBACK WindowProc(HWND   hwnd,
+                                   UINT   msg,
                                    WPARAM wParam,
-                                   LPARAM lParam) {
+                                   LPARAM lParam)
+{
     Frame* f = (Frame*)GetWindowLongPtr(hwnd, GWLP_USERDATA);
     switch (msg) {
-    case WM_PAINT: {
-        PAINTSTRUCT ps;
-        BeginPaint(hwnd, &ps);
-        EndPaint(hwnd, &ps);
-    } break;
+    case WM_PAINT:
+        {
+            PAINTSTRUCT ps;
+            BeginPaint(hwnd, &ps);
+            EndPaint(hwnd, &ps);
+        }
+        break;
 
     case WM_CLOSE:
         DestroyWindow(hwnd);
@@ -1293,7 +1319,8 @@ static LRESULT CALLBACK WindowProc(HWND hwnd,
     return 0;
 }
 
-Frame frame_open(int width, int height, bool resizable, const char* title) {
+Frame frame_open(int width, int height, bool resizable, const char* title)
+{
     Frame f = {
         .title       = title,
         .width       = width,
@@ -1304,16 +1331,16 @@ Frame frame_open(int width, int height, bool resizable, const char* title) {
         .fps         = 0.0,
     };
 
-    HINSTANCE instance = GetModuleHandle(NULL);
-    WNDCLASSEX wc      = {
-             .cbSize        = sizeof(WNDCLASSEX),
-             .style         = CS_HREDRAW | CS_VREDRAW,
-             .lpfnWndProc   = WindowProc,
-             .hInstance     = instance,
-             .lpszClassName = f.title,
-             .hCursor       = LoadCursor(NULL, IDC_ARROW),
-             .hIcon         = LoadIcon(NULL, IDI_APPLICATION),
-             .hIconSm       = LoadIcon(NULL, IDI_APPLICATION),
+    HINSTANCE  instance = GetModuleHandle(NULL);
+    WNDCLASSEX wc       = {
+              .cbSize        = sizeof(WNDCLASSEX),
+              .style         = CS_HREDRAW | CS_VREDRAW,
+              .lpfnWndProc   = WindowProc,
+              .hInstance     = instance,
+              .lpszClassName = f.title,
+              .hCursor       = LoadCursor(NULL, IDC_ARROW),
+              .hIcon         = LoadIcon(NULL, IDI_APPLICATION),
+              .hIconSm       = LoadIcon(NULL, IDI_APPLICATION),
     };
 
     RegisterClassEx(&wc);
@@ -1405,7 +1432,8 @@ Frame frame_open(int width, int height, bool resizable, const char* title) {
     return f;
 }
 
-bool frame_loop(Frame* f) {
+bool frame_loop(Frame* f)
+{
     if (!f || f->done) {
         if (f) {
             frame_cleanup(f);
@@ -1450,15 +1478,16 @@ bool frame_loop(Frame* f) {
     return true;
 }
 
-void frame_fullscreen(Frame* f, bool enable) {
+void frame_fullscreen(Frame* f, bool enable)
+{
     if (!f || !f->hwnd) {
         return;
     }
 
-    static WINDOWPLACEMENT prev_wp = {.length = sizeof(WINDOWPLACEMENT)};
-    static DWORD prev_style        = 0;
-    static DWORD prev_ex_style     = 0;
-    static bool is_fullscreen      = false;
+    static WINDOWPLACEMENT prev_wp       = {.length = sizeof(WINDOWPLACEMENT)};
+    static DWORD           prev_style    = 0;
+    static DWORD           prev_ex_style = 0;
+    static bool            is_fullscreen = false;
 
     if (enable && !is_fullscreen) {
         prev_style     = (DWORD)GetWindowLongPtr(f->hwnd, GWL_STYLE);
@@ -1507,14 +1536,16 @@ void frame_fullscreen(Frame* f, bool enable) {
 //------------------------------------------------------------------------------
 // Common frame functions
 
-void frame_done(Frame* f) {
+void frame_done(Frame* f)
+{
     if (!f) {
         return;
     }
     f->done = true;
 }
 
-GfxLayer* frame_add_pixels_layer(Frame* f, int width, int height) {
+GfxLayer* frame_add_pixels_layer(Frame* f, int width, int height)
+{
     GfxLayer* layer = gfx_layer_create(width, height, NULL);
     if (!layer) {
         eprn("Failed to create graphics layer");
@@ -1526,16 +1557,18 @@ GfxLayer* frame_add_pixels_layer(Frame* f, int width, int height) {
 
 f64 frame_fps(Frame* f) { return f->fps; }
 
-void frame_free_pixels_layer(GfxLayer* layer) {
+void frame_free_pixels_layer(GfxLayer* layer)
+{
     KORE_UNUSED(layer); // Layer teardown happens in frame_cleanup
 }
 
-bool frame_map_coords_to_layer(Frame* f,
+bool frame_map_coords_to_layer(Frame*          f,
                                const GfxLayer* layer,
-                               int window_x,
-                               int window_y,
-                               int* out_layer_x,
-                               int* out_layer_y) {
+                               int             window_x,
+                               int             window_y,
+                               int*            out_layer_x,
+                               int*            out_layer_y)
+{
     if (!f || !layer || !out_layer_x || !out_layer_y) {
         return false;
     }
@@ -1577,21 +1610,24 @@ bool frame_map_coords_to_layer(Frame* f,
 //------------------------------------------------------------------------------
 // Event functions
 
-void frame_event_enqueue(Frame* f, FrameEvent event) {
+void frame_event_enqueue(Frame* f, FrameEvent event)
+{
     if (!f) {
         return;
     }
     array_push(f->events, event);
 }
 
-void frame_event_clear(Frame* f) {
+void frame_event_clear(Frame* f)
+{
     if (!f) {
         return;
     }
     array_clear(f->events);
 }
 
-FrameEvent frame_event_poll(Frame* f) {
+FrameEvent frame_event_poll(Frame* f)
+{
     FrameEvent ev = {.type = FRAME_EVENT_NONE};
     if (array_count(f->events) == 0) {
         if (f) {
@@ -1608,21 +1644,24 @@ FrameEvent frame_event_poll(Frame* f) {
     return ev;
 }
 
-bool frame_event_is_shift_pressed(const FrameEvent* ev) {
+bool frame_event_is_shift_pressed(const FrameEvent* ev)
+{
     if (!ev) {
         return false;
     }
     return (ev->key.shift & (KEY_SHIFT_LEFT | KEY_SHIFT_RIGHT)) != 0;
 }
 
-bool frame_event_is_ctrl_pressed(const FrameEvent* ev) {
+bool frame_event_is_ctrl_pressed(const FrameEvent* ev)
+{
     if (!ev) {
         return false;
     }
     return (ev->key.shift & (KEY_CTRL_LEFT | KEY_CTRL_RIGHT)) != 0;
 }
 
-bool frame_event_is_alt_pressed(const FrameEvent* ev) {
+bool frame_event_is_alt_pressed(const FrameEvent* ev)
+{
     if (!ev) {
         return false;
     }
