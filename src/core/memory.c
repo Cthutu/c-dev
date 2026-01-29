@@ -215,7 +215,7 @@ void mem_break_on_alloc(u64 index) { g_memory_break_index = index; }
 // Dumps all currently allocated memory blocks to the console
 //------------------------------------------------------------------------------
 
-void mem_print_leaks(void)
+void mem_dump_leaks(void)
 {
     MemoryHeader* current      = g_memory_head;
     usize         leak_count   = 0;

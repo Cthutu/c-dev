@@ -2,7 +2,7 @@
 
 #include <core/core.h>
 
-int main(int argc, char** argv)
+int run(int argc, char** argv)
 {
     UNUSED(argc);
     UNUSED(argv);

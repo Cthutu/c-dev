@@ -6,7 +6,7 @@
 
 #include <core/core.h>
 
-global_variable Mutex g_kore_output_mutex;
+Mutex g_kore_output_mutex;
 
 //------------------------------------------------------------------------------
 // _format_output
