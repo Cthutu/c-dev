@@ -71,7 +71,7 @@ void _arena_init(Arena* arena, ArenaDefaultParams params)
 #if OS_WINDOWS
     u8* memory = (u8*)VirtualAlloc(
         nullptr, params.reserved_size, MEM_RESERVE, PAGE_NOACCESS);
-    mem_check(
+    MEM_CHECK(
         VirtualAlloc(memory, initial_alloc_size, MEM_COMMIT, PAGE_READWRITE));
 
 #elif OS_POSIX
