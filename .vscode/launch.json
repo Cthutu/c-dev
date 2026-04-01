@@ -1,14 +1,28 @@
 {
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Launch Executable (Linux)",
-      "type": "lldb",
-      "request": "launch",
-      "program": "${workspaceFolder}/_bin/hello-debug",
-      "args": ["build"],
-      "cwd": "${workspaceFolder}",
-      "preLaunchTask": "Compile"
-    }
-  ]
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch Executable (Linux)",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/_bin/hello-debug",
+            "args": [
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "Compile"
+        },
+        {
+            "name": "Launch Executable (Windows)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/_bin/hello-debug.exe",
+            "args": [
+                "build"
+            ],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Compile"
+        }
+    ]
 }

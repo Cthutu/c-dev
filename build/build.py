@@ -15,7 +15,7 @@ SRC_DIR = ROOT / "src"
 BIN_DIR = ROOT / "_bin"
 OBJ_BASE = ROOT / "_obj"
 OBJ_DIR: Path = OBJ_BASE
-API_HEADER = ROOT / "src" / "core.h"
+BUILD_STATE_FILE: Path = OBJ_BASE / ".build-state"
 
 # Compiler command sections
 CC = os.environ.get("CC", "clang")
@@ -60,9 +60,56 @@ def available_projects() -> list[str]:
     return sorted(p.stem for p in SRC_DIR.glob("*.c"))
 
 
+def module_root_for_path(path: Path) -> Path | None:
+    """Return the top-level module directory for a path under src/, if any."""
+    relative = path.relative_to(SRC_DIR)
+    if not relative.parts:
+        return None
+    candidate = SRC_DIR / relative.parts[0]
+    return candidate if candidate.is_dir() else None
+
+
+def section_headers(section: str) -> list[Path]:
+    """Return all headers under a declared section/module directory."""
+    directory = SRC_DIR / section
+    if not directory.is_dir():
+        return []
+    return sorted(directory.rglob("*.h"))
+
+
+def dependency_sections_for_source(src: Path) -> list[str]:
+    """Return transitive module sections that the source depends on."""
+    sections: list[str] = []
+    if src.suffix == ".c" and src.exists():
+        source_sections, _ = parse_sections_and_defines(src)
+        for section in source_sections:
+            _add_unique(sections, section)
+
+    module_dir = src.parent
+    if module_dir != SRC_DIR and module_dir.is_relative_to(SRC_DIR):
+        module_sections, _ = module_config_for_dir(module_dir)
+        for section in module_sections:
+            _add_unique(sections, section)
+
+    if not sections:
+        return []
+    return expand_sections(sections)
+
+
 def headers_for_source(src: Path) -> list[Path]:
-    """Return headers in the source directory and all subdirectories."""
-    return sorted(src.parent.rglob("*.h"))
+    """Return headers that should trigger a rebuild of this source."""
+    headers: list[Path] = []
+
+    # Track local module-tree headers (existing behaviour).
+    module_root = module_root_for_path(src)
+    if module_root is not None:
+        headers.extend(sorted(module_root.rglob("*.h")))
+
+    # Track headers from declared module dependencies (new behaviour).
+    for section in dependency_sections_for_source(src):
+        headers.extend(section_headers(section))
+
+    return sorted(set(headers))
 
 
 def obj_path(src: Path) -> Path:
@@ -70,33 +117,46 @@ def obj_path(src: Path) -> Path:
     return (OBJ_DIR / relative).with_suffix(".o")
 
 
-def needs_rebuild(src: Path, obj: Path) -> bool:
+def needs_rebuild(src: Path, obj: Path, header_deps: Iterable[Path] = ()) -> bool:
     if not obj.exists():
         return True
 
-    deps = [src, API_HEADER, *headers_for_source(src)]
+    deps = [src, *header_deps]
+    if BUILD_STATE_FILE.exists():
+        deps.append(BUILD_STATE_FILE)
     root_build = SRC_DIR / ".build"
     if root_build.exists():
         deps.append(root_build)
-    module_build = src.parent / ".build"
-    if module_build.exists() and module_build != root_build:
-        deps.append(module_build)
+    module_root = module_root_for_path(src)
+    if module_root is not None:
+        # Apply module and sub-module .build files to all sources in the module.
+        current = src.parent
+        while current.is_relative_to(module_root):
+            module_build = current / ".build"
+            if module_build.exists() and module_build != root_build:
+                deps.append(module_build)
+            if current == module_root:
+                break
+            current = current.parent
     obj_mtime = obj.stat().st_mtime
     return any(dep.exists() and dep.stat().st_mtime > obj_mtime for dep in deps)
 
 
-def compile_source(src: Path, extra_flags: Iterable[str] = ()) -> Path:
+def compile_source(
+    src: Path,
+    extra_flags: Iterable[str] = (),
+    header_deps: Iterable[Path] = (),
+) -> tuple[Path, bool]:
     obj = obj_path(src)
     obj.parent.mkdir(parents=True, exist_ok=True)
 
-    if not needs_rebuild(src, obj):
-        print(f"{prefix('skip', GREY)} {src.relative_to(ROOT)}")
-        return obj
+    if not needs_rebuild(src, obj, header_deps):
+        return obj, True
 
     cmd = [CC, *CFLAGS, *extra_flags, *INCLUDE_FLAGS, "-c", str(src), "-o", str(obj)]
-    print(f"{prefix('cc', GREEN)} {src.relative_to(ROOT)}")
+    print(f"{prefix('cc', GREEN)} {src.relative_to(SRC_DIR)}")
     run_command(cmd)
-    return obj
+    return obj, False
 
 
 def link_executable(objects: list[Path], executable: Path) -> None:
@@ -107,6 +167,8 @@ def link_executable(objects: list[Path], executable: Path) -> None:
         newest_obj = (
             max(obj.stat().st_mtime for obj in objects) if objects else exe_mtime
         )
+        if BUILD_STATE_FILE.exists():
+            newest_obj = max(newest_obj, BUILD_STATE_FILE.stat().st_mtime)
         if exe_mtime >= newest_obj:
             print(f"{prefix('skip', GREY)} {executable.relative_to(ROOT)} (up to date)")
             return
@@ -119,8 +181,32 @@ def link_executable(objects: list[Path], executable: Path) -> None:
 def select_cflags(profile: str) -> list[str]:
     base = ["-std=c23", "-Wall", "-Wextra", "-pipe"]
     if profile == "debug":
-        return [*base, "-g", "-O0", "-DDEBUG"]
+        debug_flag = "-gcodeview" if os.name == "nt" else "-g"
+        return [*base, debug_flag, "-O0", "-DDEBUG"]
     return [*base, "-O2", "-DNDEBUG"]
+
+
+def select_ldflags(profile: str) -> list[str]:
+    if profile == "debug" and os.name == "nt":
+        return ["-Xlinker", "/debug"]
+    return []
+
+
+def write_build_state() -> None:
+    BUILD_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
+    lines = [
+        f"CC={CC}",
+        f"CFLAGS={' '.join(CFLAGS)}",
+        f"LDFLAGS={' '.join(LDFLAGS)}",
+        f"INCLUDE_FLAGS={' '.join(INCLUDE_FLAGS)}",
+        f"OS={os.name}",
+    ]
+    contents = "\n".join(lines) + "\n"
+    if BUILD_STATE_FILE.exists():
+        existing = BUILD_STATE_FILE.read_text(encoding="utf-8", errors="ignore")
+        if existing == contents:
+            return
+    BUILD_STATE_FILE.write_text(contents, encoding="utf-8")
 
 
 def parse_args(argv: list[str]) -> argparse.Namespace:
@@ -135,6 +221,26 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def _add_unique(items: list[str], value: str) -> None:
     if value not in items:
         items.append(value)
+
+
+def _normalize_section(path: Path) -> str:
+    return path.as_posix()
+
+
+def _resolve_use_token(token: str, source: Path) -> str:
+    """Resolve module token relative to source dir, then fall back to src root."""
+    # 1) Relative to the current module/file directory.
+    relative_candidate = source.parent / token
+    if relative_candidate.is_dir() and relative_candidate.is_relative_to(SRC_DIR):
+        return _normalize_section(relative_candidate.relative_to(SRC_DIR))
+
+    # 2) Absolute from src/ root.
+    root_candidate = SRC_DIR / token
+    if root_candidate.is_dir():
+        return _normalize_section(root_candidate.relative_to(SRC_DIR))
+
+    # Keep original token so downstream validation/error paths remain unchanged.
+    return token
 
 
 def _parse_command_lines(
@@ -178,7 +284,8 @@ def _parse_command_lines(
                             RED,
                         )
                     )
-                _add_unique(sections, token)
+                resolved = _resolve_use_token(token, source)
+                _add_unique(sections, resolved)
         elif command == "def":
             for token in tokens:
                 if token == "=" or token.startswith("=") or token.endswith("="):
@@ -241,16 +348,30 @@ def parse_sections_and_defines(src: Path) -> tuple[list[str], list[str]]:
 
 
 def module_header_for_dir(directory: Path) -> Path | None:
-    """Return the single header in a module directory (non-recursive)."""
+    """Return the canonical module header: <module>/<module>.h."""
+    if directory == SRC_DIR:
+        return None
+
+    expected = directory / f"{directory.name}.h"
+    if expected.exists():
+        return expected
+
     headers = sorted(directory.glob("*.h"))
     if not headers:
-        return None
-    if len(headers) > 1:
-        names = ", ".join(h.name for h in headers)
         raise SystemExit(
-            colour(f"Multiple headers in module {directory}: {names}", RED)
+            colour(
+                f"Missing module header in {directory}: expected {expected.name}",
+                RED,
+            )
         )
-    return headers[0]
+
+    names = ", ".join(h.name for h in headers)
+    raise SystemExit(
+        colour(
+            f"Invalid module header in {directory}: expected {expected.name}; found {names}",
+            RED,
+        )
+    )
 
 
 def parse_build_file(build_file: Path) -> tuple[list[str], list[str]]:
@@ -343,17 +464,21 @@ def banner(profile: str, projects: list[str]) -> None:
 
 def executable_path(project: str, profile: str) -> Path:
     suffix = "-debug" if profile == "debug" else ""
-    return BIN_DIR / f"{project}{suffix}"
+    extension = ".exe" if os.name == "nt" else ""
+    return BIN_DIR / f"{project}{suffix}{extension}"
 
 
 def main(argv: list[str] | None = None) -> None:
-    global CFLAGS, OBJ_DIR
+    global BUILD_STATE_FILE, CFLAGS, LDFLAGS, OBJ_DIR
     argv = argv or sys.argv
     args = parse_args(argv)
 
     profile = "release" if args.release else "debug"
     CFLAGS = select_cflags(profile)
+    LDFLAGS = select_ldflags(profile)
     OBJ_DIR = OBJ_BASE / profile
+    BUILD_STATE_FILE = OBJ_DIR / ".build-state"
+    write_build_state()
 
     projects = args.projects or available_projects()
     if not projects:
@@ -373,6 +498,7 @@ def main(argv: list[str] | None = None) -> None:
 
     module_define_cache: dict[Path, list[str]] = {}
     extra_flags_by_source: dict[Path, list[str]] = {}
+    header_deps_by_source: dict[Path, list[Path]] = {}
     for src in all_sources:
         module_dir = src.parent
         if module_dir not in module_define_cache:
@@ -380,6 +506,7 @@ def main(argv: list[str] | None = None) -> None:
             module_define_cache[module_dir] = defines
         defines = module_define_cache[module_dir]
         extra_flags_by_source[src] = [f"-D{define}" for define in defines]
+        header_deps_by_source[src] = headers_for_source(src)
 
     for project in projects:
         root_src = SRC_DIR / f"{project}.c"
@@ -391,15 +518,23 @@ def main(argv: list[str] | None = None) -> None:
                 *[f"-D{define}" for define in defines],
             ]
 
-    compiled = {
-        src: compile_source(src, extra_flags_by_source.get(src, []))
-        for src in all_sources
-    }
+    compiled: dict[Path, Path] = {}
+    skipped_sources = 0
+    for src in all_sources:
+        obj, skipped = compile_source(
+            src,
+            extra_flags_by_source.get(src, []),
+            header_deps_by_source.get(src, []),
+        )
+        compiled[src] = obj
+        if skipped:
+            skipped_sources += 1
 
     for project, sources in project_sources.items():
         objects = [compiled[src] for src in sources]
         link_executable(objects, executable_path(project, profile))
 
+    print(f"{prefix('skip', GREY)} {skipped_sources} source file(s) up to date")
     finish_bar = colour("=" * 48, GREEN)
     print(finish_bar)
     print(colour(">> Build complete. Go be nerdy! \\o/ <<", BOLD + GREEN))
